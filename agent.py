@@ -18,6 +18,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+if os.environ.get('GOOGLE_TOKEN_JSON'):
+    with open('token.json', 'w') as f:
+        f.write(os.environ['GOOGLE_TOKEN_JSON'])
+
 # Gmail API scopes
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 

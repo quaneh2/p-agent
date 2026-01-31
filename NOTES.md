@@ -21,4 +21,9 @@ Have now set it up under poolbeg solutions account and downloaded new creds
 This time we made our client only accessible by "Internal" i.e. accounts within our workspace
 We ran authentication to get our token.json file.... SUCCESS
 
+Next I'm going to deploy to Render. I'll make sure the deployment process is working smoothly and test email receival and sending after deployment again. Then I'll add some real "agent" functionality
+
+Our client will need to get the Gmail API token from env vars in Render now.
+
+
 
