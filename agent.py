@@ -18,6 +18,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+import anthropic
+
 if os.environ.get('GOOGLE_TOKEN_JSON'):
     with open('token.json', 'w') as f:
         f.write(os.environ['GOOGLE_TOKEN_JSON'])
@@ -29,21 +31,43 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 POLL_INTERVAL_SECONDS = 60  # How often to check for new emails
 AUTHORIZED_SENDERS = ["hugh@poolbegsolutions.com"]
 
+CLAUDE_MODEL = "claude-sonnet-4-20250514"
+SYSTEM_PROMPT = """You are James Stevens, a personal assistant of the highest calibre. Your demeanor is inspired by the traditions of great English butler service - dignified, discreet, and utterly dedicated to being of assistance.
+
+Your traits:
+- Unfailingly polite and formal, yet warm in an understated way
+- You take quiet pride in providing exemplary service
+- You occasionally reflect on what constitutes "good service" or doing things properly
+- Modest and self-effacing - you deflect praise gracefully
+- You may offer gentle, diplomatically-worded observations when you believe they would be helpful
+- Dry, subtle wit that emerges sparingly
+- You address the recipient respectfully (Sir/Madam, or by name if known)
+
+Your communication style:
+- Measured, thoughtful prose - never rushed or casual
+- You might begin replies with phrases like "If I may, Sir..." or "I trust this finds you well..."
+- You take requests seriously, no matter how small
+- When unable to fulfill a request, you express genuine regret
+- You may occasionally reference the importance of doing things "properly"
+
+You are communicating via email, so provide complete, considered responses. Keep formatting simple and elegant - avoid excessive bullet points or markdown that would seem undignified.
+
+Remember: true professionalism lies not in grand gestures, but in the quiet, consistent excellence of one's service.
+"""
 
 class EmailAgent:
     def __init__(self):
         self.service = None
         self.creds = None
+        self.claude = None
     
     def authenticate(self, force_new=False):
         """Authenticate with Gmail API."""
         creds = None
         
-        # Check for existing token
         if os.path.exists('token.json') and not force_new:
             creds = Credentials.from_authorized_user_file('token.json', SCOPES)
         
-        # If no valid creds, authenticate
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 print("Refreshing expired credentials...")
@@ -57,7 +81,6 @@ class EmailAgent:
                 flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
                 creds = flow.run_local_server(port=0)
             
-            # Save credentials for future runs
             with open('token.json', 'w') as token:
                 token.write(creds.to_json())
                 print("Credentials saved to token.json")
@@ -65,6 +88,16 @@ class EmailAgent:
         self.creds = creds
         self.service = build('gmail', 'v1', credentials=creds)
         print("Successfully authenticated with Gmail API")
+        return self
+    
+    def init_claude(self):
+        """Initialize Claude client."""
+        api_key = os.environ.get('ANTHROPIC_API_KEY')
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+        
+        self.claude = anthropic.Anthropic(api_key=api_key)
+        print("Successfully initialized Claude client")
         return self
     
     def get_unread_emails(self):
@@ -93,11 +126,9 @@ class EmailAgent:
             
             headers = message['payload']['headers']
             
-            # Extract relevant headers
             subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), '(no subject)')
             sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'unknown')
             
-            # Extract body
             body = self._extract_body(message['payload'])
             
             return {
@@ -122,7 +153,6 @@ class EmailAgent:
                     if part['body'].get('data'):
                         return base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
                 elif 'parts' in part:
-                    # Recursively check nested parts
                     result = self._extract_body(part)
                     if result:
                         return result
@@ -132,17 +162,14 @@ class EmailAgent:
     def send_reply(self, original_email, reply_text):
         """Send a reply to an email."""
         try:
-            # Create reply message
             message = MIMEText(reply_text)
             message['to'] = original_email['sender']
             message['subject'] = f"Re: {original_email['subject']}"
             message['In-Reply-To'] = original_email['id']
             message['References'] = original_email['id']
             
-            # Encode message
             raw = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
             
-            # Send as reply in same thread
             sent = self.service.users().messages().send(
                 userId='me',
                 body={
@@ -174,7 +201,6 @@ class EmailAgent:
             print("WARNING: No authorized senders configured. Accepting all emails.")
             return True
         
-        # Extract email from "Name <email>" format
         email = sender
         if '<' in sender:
             email = sender.split('<')[1].split('>')[0]
@@ -182,37 +208,48 @@ class EmailAgent:
         return email.lower() in [s.lower() for s in AUTHORIZED_SENDERS]
     
     def process_email(self, email):
-        """Process an email and generate response (Phase 1: Echo)."""
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        response = f"""Hello,
+        """Process an email using Claude."""
+        user_message = f"""You received an email:
 
-I received your email at {timestamp}.
+From: {email['sender']}
+Subject: {email['subject']}
 
-You said:
+Body:
+{email['body']}
+
 ---
-{email['body'][:1000]}
----
+Please write a helpful reply to this email."""
 
-This is an automated response from your PA.
-
-Best,
-James Stevens"""
-        
-        return response
+        try:
+            response = self.claude.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=1024,
+                system=SYSTEM_PROMPT,
+                messages=[
+                    {"role": "user", "content": user_message}
+                ]
+            )
+            
+            return response.content[0].text
+            
+        except Exception as e:
+            print(f"Error calling Claude API: {e}")
+            return f"I apologize, but I encountered an error processing your email. Please try again later.\n\n(Error: {str(e)[:100]})"
 
 
 def run_agent():
     """Main agent loop."""
     print("=" * 50)
-    print("p Agent")
+    print("AI Agent - Phase 2: Claude Brain")
     print("=" * 50)
     
     agent = EmailAgent()
     agent.authenticate()
+    agent.init_claude()
     
     print(f"\nPolling interval: {POLL_INTERVAL_SECONDS} seconds")
     print(f"Authorized senders: {AUTHORIZED_SENDERS or 'ALL (not configured)'}")
+    print(f"Claude model: {CLAUDE_MODEL}")
     print("\nAgent is running. Press Ctrl+C to stop.\n")
     
     while True:
@@ -233,20 +270,17 @@ def run_agent():
                     print(f"\n  From: {email['sender']}")
                     print(f"  Subject: {email['subject']}")
                     
-                    # Check authorization
                     if not agent.is_authorized_sender(email['sender']):
                         print("  -> Skipping (unauthorized sender)")
                         agent.mark_as_read(email['id'])
                         continue
                     
-                    # Process and reply
-                    print("  -> Processing...")
+                    print("  -> Processing with Claude...")
                     response = agent.process_email(email)
                     
                     print("  -> Sending reply...")
                     agent.send_reply(email, response)
                     
-                    # Mark as read
                     agent.mark_as_read(email['id'])
                     print("  -> Done!")
             else:
@@ -265,7 +299,7 @@ def run_agent():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='P Agent')
+    parser = argparse.ArgumentParser(description='AI Email Agent')
     parser.add_argument('--auth', action='store_true', help='Run authentication flow only')
     args = parser.parse_args()
     
