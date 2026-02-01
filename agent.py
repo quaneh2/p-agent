@@ -23,7 +23,7 @@ from googleapiclient.errors import HttpError
 
 import anthropic
 
-from prompts import SYSTEM_PROMPT
+from prompts import SYSTEM_PROMPT, EMAIL_RECEIVED_TEMPLATE
 from tools import TOOLS, handle_tool_call
 
 if os.environ.get('GOOGLE_TOKEN_JSON'):
@@ -365,16 +365,11 @@ class EmailAgent:
     
     def process_email(self, email):
         """Process an email using Claude with tool support."""
-        user_message = f"""You received an email:
-
-From: {email['sender']}
-Subject: {email['subject']}
-
-Body:
-{email['body']}
-
----
-Please help with this request. If asked to create any document, use save_document to write it to your workspace, then commit_and_push to push it to the repository."""
+        user_message = EMAIL_RECEIVED_TEMPLATE.format(
+            sender=email['sender'],
+            subject=email['subject'],
+            body=email['body']
+        )
 
         messages = [{"role": "user", "content": user_message}]
         
