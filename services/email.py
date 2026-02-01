@@ -84,6 +84,7 @@ class EmailService:
 
             subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), '(no subject)')
             sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'unknown')
+            message_id = next((h['value'] for h in headers if h['name'].lower() == 'message-id'), None)
 
             body = self._extract_body(message['payload'])
 
@@ -92,7 +93,8 @@ class EmailService:
                 'subject': subject,
                 'sender': sender,
                 'body': body,
-                'thread_id': message['threadId']
+                'thread_id': message['threadId'],
+                'message_id': message_id
             }
         except HttpError as error:
             print(f"Error getting email details: {error}")
@@ -121,8 +123,9 @@ class EmailService:
             message = MIMEText(reply_text)
             message['to'] = original_email['sender']
             message['subject'] = f"Re: {original_email['subject']}"
-            message['In-Reply-To'] = original_email['id']
-            message['References'] = original_email['id']
+            if original_email.get('message_id'):
+                message['In-Reply-To'] = original_email['message_id']
+                message['References'] = original_email['message_id']
 
             raw = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
 
