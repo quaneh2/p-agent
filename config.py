@@ -18,3 +18,6 @@ CLAUDE_MODEL = "claude-sonnet-4-20250514"
 
 GIT_USER_NAME = "James Stevens"
 GIT_USER_EMAIL = "stevens@poolbegsolutions.com"
+
+# Gmail API scopes
+SCOPES = ['https://www.googleapis.com/auth/gmail.modify']

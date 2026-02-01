@@ -81,6 +81,9 @@ I've done some testing, and everything is working nicely again.
 The agent's personality has been annoying me. I want it to be more subtle. I've reworded the prompt.
 I've moved the email processing prompt out in to the prompts folder.
 
+I've also moved the workspace class into it's own place in the services folder.
+I created a new Email Service class in the services folder that handles everything relation to polling inbox, extracting details from emails, sending replies etc
+
 
 
 
