@@ -1,6 +1,9 @@
 credentials.json
 token.json
 
+.env
+workspace/
+
 # Python
 __pycache__/
 *.py[cod]
