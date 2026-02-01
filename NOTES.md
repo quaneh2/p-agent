@@ -76,7 +76,10 @@ I'm putting tools in their own folder. This involed building a tool handler. The
 
 Made a silly mistake where I forgot that env vars will just be loaded as a string. So when loading authorised senders I was actually loading "["example@gmail.com", "example2@gmail.com"]" and then of course it wasn't correclty checking the sender against the list. Needed to parse this as json when importing from env vars.
 
+I've done some testing, and everything is working nicely again.
 
+The agent's personality has been annoying me. I want it to be more subtle. I've reworded the prompt.
+I've moved the email processing prompt out in to the prompts folder.
 
 
 
