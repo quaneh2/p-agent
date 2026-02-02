@@ -15,10 +15,48 @@ def handle_save_document(workspace, file_path: str, content: str) -> str:
         print(f"    !! Error: {result.get('error')}")
     return json.dumps(result)
 
+def handle_read_document(workspace, file_path: str) -> str:
+    """Handle the read_document tool call."""
+    print(f"    -> Reading document: {file_path}")
+    result = workspace.read_document(file_path=file_path)
+    if not result.get("success"):
+        print(f"    !! Error: {result.get('error')}")
+    return json.dumps(result)
+
+
 def handle_delete_document(workspace, file_path: str) -> str:
     """Handle the delete_document tool call."""
     print(f"    -> Deleting document: {file_path}")
     result = workspace.delete_document(file_path=file_path)
+    if not result.get("success"):
+        print(f"    !! Error: {result.get('error')}")
+    return json.dumps(result)
+
+
+def handle_delete_folder(workspace, folder_path: str, force: bool = False) -> str:
+    """Handle the delete_folder tool call."""
+    print(f"    -> Deleting folder: {folder_path} (force={force})")
+    result = workspace.delete_folder(folder_path=folder_path, force=force)
+    if not result.get("success"):
+        print(f"    !! Error: {result.get('error')}")
+    return json.dumps(result)
+
+
+def handle_rename_document(workspace, old_path: str, new_path: str) -> str:
+    """Handle the rename_document tool call."""
+    print(f"    -> Renaming document: {old_path} -> {new_path}")
+    result = workspace.rename_document(old_path=old_path, new_path=new_path)
+    if not result.get("success"):
+        print(f"    !! Error: {result.get('error')}")
+    return json.dumps(result)
+
+
+def handle_create_folder(workspace, folder_path: str) -> str:
+    """Handle the create_folder tool call."""
+    print(f"    -> Creating folder: {folder_path}")
+    result = workspace.create_folder(folder_path=folder_path)
+    if not result.get("success"):
+        print(f"    !! Error: {result.get('error')}")
     return json.dumps(result)
 
 def handle_commit_and_push(workspace, commit_message: str) -> str:
@@ -34,10 +72,10 @@ def handle_commit_and_push(workspace, commit_message: str) -> str:
     return json.dumps(result)
 
 
-def handle_list_documents(workspace) -> str:
-    """Handle the list_documents tool call."""
-    print(f"    -> Listing documents")
-    result = workspace.list_documents()
+def handle_examine_workspace(workspace) -> str:
+    """Handle the examine_workspace tool call."""
+    print(f"    -> Examining workspace")
+    result = workspace.examine_workspace()
     return json.dumps(result)
 
 
@@ -59,20 +97,46 @@ def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
             content=tool_input["content"]
         )
         
+    elif tool_name == "read_document":
+        return handle_read_document(
+            workspace,
+            file_path=tool_input["file_path"]
+        )
+
     elif tool_name == "delete_document":
         return handle_delete_document(
             workspace,
             file_path=tool_input["file_path"]
         )
-    
+
+    elif tool_name == "delete_folder":
+        return handle_delete_folder(
+            workspace,
+            folder_path=tool_input["folder_path"],
+            force=tool_input.get("force", False)
+        )
+
+    elif tool_name == "rename_document":
+        return handle_rename_document(
+            workspace,
+            old_path=tool_input["old_path"],
+            new_path=tool_input["new_path"]
+        )
+
+    elif tool_name == "create_folder":
+        return handle_create_folder(
+            workspace,
+            folder_path=tool_input["folder_path"]
+        )
+
     elif tool_name == "commit_and_push":
         return handle_commit_and_push(
             workspace,
             commit_message=tool_input["commit_message"]
         )
     
-    elif tool_name == "list_documents":
-        return handle_list_documents(workspace)
+    elif tool_name == "examine_workspace":
+        return handle_examine_workspace(workspace)
     
     else:
         return json.dumps({"error": f"Unknown tool: {tool_name}"})

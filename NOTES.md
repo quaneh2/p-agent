@@ -90,6 +90,14 @@ It looks like the id being used was the gmail internal ID, as opposed to the cor
 Now noticed that when I request it to update files, it does it just fine locally, but the changes aren't pushed to the repo.
 Found the issue. It was silently failing. when the workspace already existed, the remote URL wasn't being updated with the authenticated token.
 
+## 02/02/2026
+
+I've just noticed that the delete functionality doesn't delete the folders in the local filesystem when there's no files within them. 
+I don't want to just set up some rule that empty parent folders are deleted. I want to give the agent full capbaility to manage files and folders in its workspace.
+I need to make sure the agent can only do so in its workspace
+I'm going to add a function to carry out path validation to ensure only files and folders within workspace can be modified.
+I'll use Path.resolve() and Path.is_relative_to() to help with this.
+
 
 
 
