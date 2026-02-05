@@ -17,9 +17,9 @@ from config import (
     AUTHORIZED_SENDERS,
     CLAUDE_MODEL,
 )
-from prompts import SYSTEM_PROMPT, EMAIL_RECEIVED_TEMPLATE
+from prompts import load_system_prompt, EMAIL_RECEIVED_TEMPLATE
 from tools import TOOLS, handle_tool_call
-from services import Workspace, EmailService
+from services import Workspace, EmailService, AgentCore
 
 
 class EmailAgent:
@@ -27,11 +27,13 @@ class EmailAgent:
         self.email_service = None
         self.claude = None
         self.workspace = None
+        self.agent_core = None
 
     @property
     def services(self):
         return {
             "workspace": self.workspace,
+            "agent_core": self.agent_core,
         }
 
     def init_email(self):
@@ -56,6 +58,12 @@ class EmailAgent:
         self.workspace.init()
         return self
 
+    def init_agent_core(self):
+        """Initialize the agent-core configuration repo."""
+        self.agent_core = AgentCore()
+        self.agent_core.init()
+        return self
+
     def is_authorized_sender(self, sender):
         """Check if sender is in authorized list."""
         if not AUTHORIZED_SENDERS:
@@ -70,6 +78,10 @@ class EmailAgent:
 
     def process_email(self, email):
         """Process an email using Claude with tool support."""
+        # Pull latest config and load current system prompt
+        self.agent_core.pull_latest()
+        system_prompt = load_system_prompt()
+
         user_message = EMAIL_RECEIVED_TEMPLATE.format(
             sender=email['sender'],
             subject=email['subject'],
@@ -83,7 +95,7 @@ class EmailAgent:
             response = self.claude.messages.create(
                 model=CLAUDE_MODEL,
                 max_tokens=4096,
-                system=SYSTEM_PROMPT,
+                system=system_prompt,
                 tools=TOOLS,
                 messages=messages
             )
@@ -113,7 +125,7 @@ class EmailAgent:
                 response = self.claude.messages.create(
                     model=CLAUDE_MODEL,
                     max_tokens=4096,
-                    system=SYSTEM_PROMPT,
+                    system=system_prompt,
                     tools=TOOLS,
                     messages=messages
                 )
@@ -137,6 +149,7 @@ def run_agent():
     agent.init_email()
     agent.init_claude()
     agent.init_workspace()
+    agent.init_agent_core()
 
     print(f"\nPolling interval: {POLL_INTERVAL_SECONDS} seconds")
     print(f"Authorized senders: {AUTHORIZED_SENDERS or 'ALL (not configured)'}")

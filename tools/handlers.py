@@ -79,17 +79,54 @@ def handle_examine_workspace(workspace) -> str:
     return json.dumps(result)
 
 
+def handle_list_agent_core(agent_core) -> str:
+    """Handle the list_agent_core tool call."""
+    print(f"    -> Listing agent-core files")
+    result = agent_core.list_files()
+    return json.dumps(result)
+
+
+def handle_read_agent_core(agent_core, file_path: str) -> str:
+    """Handle the read_agent_core tool call."""
+    print(f"    -> Reading agent-core file: {file_path}")
+    result = agent_core.read_file(file_path)
+    return json.dumps(result)
+
+
+def handle_create_agent_core(agent_core, file_path: str, content: str, commit_message: str) -> str:
+    """Handle the create_agent_core tool call."""
+    print(f"    -> Creating agent-core file: {file_path}")
+    result = agent_core.create_file(
+        file_path=file_path,
+        content=content,
+        commit_message=commit_message
+    )
+    return json.dumps(result)
+
+
+def handle_update_agent_core(agent_core, file_path: str, content: str, commit_message: str) -> str:
+    """Handle the update_agent_core tool call."""
+    print(f"    -> Updating agent-core file: {file_path}")
+    result = agent_core.update_file(
+        file_path=file_path,
+        content=content,
+        commit_message=commit_message
+    )
+    return json.dumps(result)
+
+
 def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
     """
     Route a tool call to its handler.
-    
+
     Args:
         tool_name: Name of the tool to call
         tool_input: Parameters for the tool
-        services: Dict of available services (workspace, memory, etc.)
+        services: Dict of available services (workspace, agent_core, etc.)
     """
     workspace = services.get("workspace")
-    
+    agent_core = services.get("agent_core")
+
     if tool_name == "save_document":
         return handle_save_document(
             workspace,
@@ -137,6 +174,31 @@ def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
     
     elif tool_name == "examine_workspace":
         return handle_examine_workspace(workspace)
-    
+
+    elif tool_name == "list_agent_core":
+        return handle_list_agent_core(agent_core)
+
+    elif tool_name == "read_agent_core":
+        return handle_read_agent_core(
+            agent_core,
+            file_path=tool_input["file_path"]
+        )
+
+    elif tool_name == "create_agent_core":
+        return handle_create_agent_core(
+            agent_core,
+            file_path=tool_input["file_path"],
+            content=tool_input["content"],
+            commit_message=tool_input["commit_message"]
+        )
+
+    elif tool_name == "update_agent_core":
+        return handle_update_agent_core(
+            agent_core,
+            file_path=tool_input["file_path"],
+            content=tool_input["content"],
+            commit_message=tool_input["commit_message"]
+        )
+
     else:
         return json.dumps({"error": f"Unknown tool: {tool_name}"})

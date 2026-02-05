@@ -99,5 +99,8 @@ I'm going to add a function to carry out path validation to ensure only files an
 I'll use Path.resolve() and Path.is_relative_to() to help with this.
 
 
+Also just realised it can only read folder structure and doc names, not document content. Another tool to add.
+
+
 
 
