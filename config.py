@@ -13,16 +13,15 @@ POLL_INTERVAL_SECONDS = 10
 
 AUTHORIZED_SENDERS = json.loads(os.getenv("AUTHORIZED_SENDERS", "[]"))
 
-CLAUDE_MODEL = "claude-sonnet-4-20250514"
+CLAUDE_MODEL = "claude-sonnet-4-6"
 
 GIT_USER_NAME = "James Stevens"
 GIT_USER_EMAIL = "stevens@poolbegsolutions.com"
 
-WORKSPACE_DIR = Path("./workspace")
+REPOS_BASE_DIR = Path("./repos")
 AGENT_CORE_DIR = Path("./agent-core")
 
 GITHUB_USERNAME = "stevens-j-54"
-WORKSPACE_REPO = f"{GITHUB_USERNAME}/workspace"
 AGENT_CORE_REPO = f"{GITHUB_USERNAME}/agent-core"
 
 # Gmail API scopes

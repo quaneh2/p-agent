@@ -2,11 +2,14 @@
 GitRepo base class - common git repository functionality
 """
 
+import logging
 import os
 import subprocess
 from pathlib import Path
 
 from config import GIT_USER_NAME, GIT_USER_EMAIL
+
+logger = logging.getLogger(__name__)
 
 
 class GitRepo:
@@ -29,11 +32,11 @@ class GitRepo:
         self.repo_url = f"https://{token}@github.com/{self.repo_name}.git"
 
         if self.repo_dir.exists() and (self.repo_dir / ".git").exists():
-            print(f"Repo exists at {self.repo_dir}, pulling latest...")
+            logger.info("Pulling latest: %s", self.repo_dir)
             self._run_git(["remote", "set-url", "origin", self.repo_url])
             self._run_git(["pull"])
         else:
-            print(f"Cloning {self.repo_name} to {self.repo_dir}...")
+            logger.info("Cloning %s to %s", self.repo_name, self.repo_dir)
             self.repo_dir.mkdir(parents=True, exist_ok=True)
             subprocess.run(
                 ["git", "clone", self.repo_url, str(self.repo_dir)],
@@ -44,7 +47,7 @@ class GitRepo:
         self._run_git(["config", "user.email", GIT_USER_EMAIL])
         self._run_git(["config", "user.name", GIT_USER_NAME])
 
-        print(f"Repo ready: {self.repo_dir}")
+        logger.info("Repo ready: %s", self.repo_name)
         return self
 
     def _run_git(self, args: list) -> subprocess.CompletedProcess:
@@ -63,6 +66,7 @@ class GitRepo:
             self._run_git(["pull"])
             return {"success": True}
         except Exception as e:
+            logger.error("Pull failed for %s: %s", self.repo_name, e)
             return {"success": False, "error": str(e)}
 
     def list_files(self) -> dict:
@@ -157,6 +161,7 @@ class GitRepo:
                 "message": "Changes committed and pushed successfully."
             }
         except subprocess.CalledProcessError as e:
+            logger.error("Git error in %s: %s", self.repo_name, e.stderr)
             return {
                 "success": False,
                 "error": f"Git error: {e.stderr}"

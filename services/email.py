@@ -2,6 +2,7 @@
 Email service - handles Gmail API operations
 """
 
+import logging
 import os
 import base64
 from email.mime.text import MIMEText
@@ -13,6 +14,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from config import SCOPES
+
+logger = logging.getLogger(__name__)
 
 
 class EmailService:
@@ -36,24 +39,24 @@ class EmailService:
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                print("Refreshing expired credentials...")
+                logger.info("Refreshing expired Gmail credentials")
                 creds.refresh(Request())
             else:
                 if not os.path.exists('credentials.json'):
                     raise FileNotFoundError(
                         "credentials.json not found. Download it from Google Cloud Console."
                     )
-                print("Starting OAuth flow...")
+                logger.info("Starting OAuth flow...")
                 flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
                 creds = flow.run_local_server(port=0)
 
             with open('token.json', 'w') as token:
                 token.write(creds.to_json())
-                print("Credentials saved to token.json")
+                logger.info("Credentials saved to token.json")
 
         self.creds = creds
         self.service = build('gmail', 'v1', credentials=creds)
-        print("Successfully authenticated with Gmail API")
+        logger.info("Gmail API authenticated")
         return self
 
     def get_unread_emails(self):
@@ -68,7 +71,7 @@ class EmailService:
             messages = results.get('messages', [])
             return messages
         except HttpError as error:
-            print(f"Error fetching emails: {error}")
+            logger.error("Failed to fetch emails: %s", error)
             return []
 
     def get_email_details(self, msg_id):
@@ -97,7 +100,7 @@ class EmailService:
                 'message_id': message_id
             }
         except HttpError as error:
-            print(f"Error getting email details: {error}")
+            logger.error("Failed to get email details for %s: %s", msg_id, error)
             return None
 
     def _extract_body(self, payload):
@@ -137,10 +140,10 @@ class EmailService:
                 }
             ).execute()
 
-            print(f"Reply sent (ID: {sent['id']})")
+            logger.info("Reply sent (ID: %s)", sent['id'])
             return sent
         except HttpError as error:
-            print(f"Error sending reply: {error}")
+            logger.error("Failed to send reply: %s", error)
             return None
 
     def mark_as_read(self, msg_id):
@@ -152,4 +155,4 @@ class EmailService:
                 body={'removeLabelIds': ['UNREAD']}
             ).execute()
         except HttpError as error:
-            print(f"Error marking as read: {error}")
+            logger.error("Failed to mark email as read (%s): %s", msg_id, error)

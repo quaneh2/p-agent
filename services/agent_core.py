@@ -2,6 +2,7 @@
 AgentCore service - manages the agent's personality and configuration repo
 """
 
+import logging
 import os
 import subprocess
 
@@ -9,9 +10,11 @@ from github import Github
 from github.GithubException import GithubException
 
 from config import AGENT_CORE_DIR, AGENT_CORE_REPO
-from prompts import DEFAULT_SYSTEM_PROMPT
+from prompts.system import DEFAULT_IDENTITY, DEFAULT_SOUL, DEFAULT_MEMORY
 
 from .git_repo import GitRepo
+
+logger = logging.getLogger(__name__)
 
 
 class AgentCore(GitRepo):
@@ -21,7 +24,6 @@ class AgentCore(GitRepo):
         super().__init__(AGENT_CORE_DIR, AGENT_CORE_REPO)
         self.github = None
         self.repo = None
-        # Alias for backwards compatibility
         self.core_dir = self.repo_dir
 
     def init(self):
@@ -29,7 +31,7 @@ class AgentCore(GitRepo):
         Initialize agent-core repo.
         - Create repo if it doesn't exist
         - Clone/pull the repo
-        - Seed with IDENTITY.md if missing
+        - Seed with default files if missing
         """
         token = os.environ.get('GITHUB_TOKEN')
 
@@ -38,14 +40,9 @@ class AgentCore(GitRepo):
         if not self.repo_name:
             raise ValueError("GITHUB_USERNAME not configured")
 
-        # Initialize GitHub client and ensure repo exists
         self.github = Github(token)
         self._ensure_repo_exists()
-
-        # Now do the standard git init (clone/pull)
         super().init()
-
-        # Seed with default identity if IDENTITY.md doesn't exist
         self._seed_if_needed()
 
         return self
@@ -54,10 +51,10 @@ class AgentCore(GitRepo):
         """Create the repo if it doesn't exist."""
         try:
             self.repo = self.github.get_repo(self.repo_name)
-            print(f"Agent core repo exists: {self.repo_name}")
+            logger.info("Agent-core repo exists: %s", self.repo_name)
         except GithubException as e:
             if e.status == 404:
-                print(f"Creating agent-core repo: {self.repo_name}")
+                logger.info("Creating agent-core repo: %s", self.repo_name)
                 user = self.github.get_user()
                 just_repo_name = self.repo_name.split("/")[-1]
                 self.repo = user.create_repo(
@@ -66,24 +63,29 @@ class AgentCore(GitRepo):
                     private=True,
                     auto_init=True
                 )
-                print(f"Created repo: {self.repo_name}")
+                logger.info("Agent-core repo created: %s", self.repo_name)
             else:
                 raise
 
     def _seed_if_needed(self):
-        """If IDENTITY.md doesn't exist, create it from default."""
-        identity_file = self.repo_dir / "IDENTITY.md"
+        """Seed any missing agent-core files with defaults."""
+        seeds = {
+            "IDENTITY.md": DEFAULT_IDENTITY,
+            "SOUL.md": DEFAULT_SOUL,
+            "MEMORY.md": f"# Memory\n\n{DEFAULT_MEMORY}",
+        }
 
-        if not identity_file.exists():
-            print("Seeding agent-core with default identity...")
+        missing = {f: c for f, c in seeds.items() if not (self.repo_dir / f).exists()}
 
-            identity_file.write_text(DEFAULT_SYSTEM_PROMPT)
+        if missing:
+            logger.info("Seeding agent-core with missing files: %s", ", ".join(missing))
+            for filename, content in missing.items():
+                (self.repo_dir / filename).write_text(content)
 
             self._run_git(["add", "."])
-            self._run_git(["commit", "-m", "Initial setup: seed with default identity"])
+            self._run_git(["commit", "-m", "Initial setup: seed default identity, soul, and memory"])
             self._run_git(["push"])
-
-            print("Agent core seeded successfully.")
+            logger.info("Agent-core seeded successfully")
 
     def create_file(self, file_path: str, content: str, commit_message: str) -> dict:
         """Create a new file in agent-core, commit, and push."""
@@ -110,6 +112,7 @@ class AgentCore(GitRepo):
                 "message": f"Created and pushed: {file_path}"
             }
         except subprocess.CalledProcessError as e:
+            logger.error("Git error creating %s: %s", file_path, e.stderr)
             return {"success": False, "error": f"Git error: {e.stderr}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -138,6 +141,7 @@ class AgentCore(GitRepo):
                 "message": f"Updated and pushed: {file_path}"
             }
         except subprocess.CalledProcessError as e:
+            logger.error("Git error updating %s: %s", file_path, e.stderr)
             return {"success": False, "error": f"Git error: {e.stderr}"}
         except Exception as e:
             return {"success": False, "error": str(e)}

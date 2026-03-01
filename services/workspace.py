@@ -5,18 +5,20 @@ Workspace service - manages the local git workspace
 import shutil
 from pathlib import Path
 
-from config import WORKSPACE_REPO
+from config import GITHUB_USERNAME, REPOS_BASE_DIR
 
 from .git_repo import GitRepo
 
 
 class Workspace(GitRepo):
-    """Manages the local git workspace with path security validation."""
+    """Manages a local git workspace with path security validation."""
 
-    def __init__(self, workspace_dir: Path):
-        super().__init__(workspace_dir, WORKSPACE_REPO)
-        # Alias for backwards compatibility
+    def __init__(self, repo_short_name: str):
+        repo_dir = REPOS_BASE_DIR / repo_short_name
+        full_repo_name = f"{GITHUB_USERNAME}/{repo_short_name}"
+        super().__init__(repo_dir, full_repo_name)
         self.workspace_dir = self.repo_dir
+        self.repo_short_name = repo_short_name
 
     def _resolve_safe_path(self, file_path: str) -> Path:
         """
