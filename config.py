@@ -24,5 +24,8 @@ AGENT_CORE_DIR = Path("./agent-core")
 GITHUB_USERNAME = "stevens-j-54"
 AGENT_CORE_REPO = f"{GITHUB_USERNAME}/agent-core"
 
+CODEBASE_REPO_NAME = "p-agent"
+UPSTREAM_CODEBASE_REPO = os.getenv("UPSTREAM_CODEBASE_REPO", "quaneh2/p-agent")
+
 # Gmail API scopes
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']

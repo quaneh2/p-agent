@@ -248,6 +248,43 @@ TOOLS = [
             "required": ["repo_name", "title", "body", "head_branch"]
         }
     },
+    # --- Codebase tools ---
+    {
+        "name": "create_codebase_branch",
+        "description": "Create a new feature branch in your codebase fork and check it out locally. Always call this before editing any codebase files.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "branch_name": {
+                    "type": "string",
+                    "description": "Branch name, e.g. 'feat/add-logging' or 'fix/email-retry'. Use lowercase with hyphens."
+                }
+            },
+            "required": ["branch_name"]
+        }
+    },
+    {
+        "name": "open_upstream_pr",
+        "description": "Open a pull request from your codebase fork to the upstream p-agent repository. The PR requires human review and approval before it is merged and deployed. Write a clear body explaining what changed and why.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "Pull request title. Concise and descriptive."
+                },
+                "body": {
+                    "type": "string",
+                    "description": "Pull request description explaining what changed and why. Markdown supported."
+                },
+                "branch_name": {
+                    "type": "string",
+                    "description": "The branch in your fork that contains the changes."
+                }
+            },
+            "required": ["title", "body", "branch_name"]
+        }
+    },
     # --- Agent-core tools ---
     {
         "name": "list_agent_core",

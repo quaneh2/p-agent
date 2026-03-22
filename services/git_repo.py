@@ -153,7 +153,7 @@ class GitRepo:
                 }
 
             self._run_git(["commit", "-m", commit_message])
-            self._run_git(["push"])
+            self._run_git(["push", "-u", "origin", "HEAD"])
 
             return {
                 "success": True,

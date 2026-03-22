@@ -8,7 +8,7 @@ import os
 from github import Github
 from github.GithubException import GithubException
 
-from config import GITHUB_USERNAME
+from config import GITHUB_USERNAME, UPSTREAM_CODEBASE_REPO
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +110,32 @@ class GitHubService:
                 "branch": branch_name,
                 "from_branch": from_branch,
                 "message": f"Branch '{branch_name}' created from '{from_branch}'"
+            }
+        except GithubException as e:
+            logger.error("GitHub API error: %s", e.data.get('message', str(e)))
+            return {"success": False, "error": f"GitHub error: {e.data.get('message', str(e))}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def open_upstream_pr(self, title: str, body: str, branch_name: str) -> dict:
+        """Open a PR from the agent's codebase fork to the upstream repo."""
+        try:
+            if not UPSTREAM_CODEBASE_REPO:
+                return {"success": False, "error": "UPSTREAM_CODEBASE_REPO is not configured"}
+            upstream_repo = self.github.get_repo(UPSTREAM_CODEBASE_REPO)
+            head = f"{self.username}:{branch_name}"
+            pr = upstream_repo.create_pull(
+                title=title,
+                body=body,
+                head=head,
+                base="main"
+            )
+            return {
+                "success": True,
+                "number": pr.number,
+                "title": pr.title,
+                "url": pr.html_url,
+                "message": f"PR #{pr.number} opened against {UPSTREAM_CODEBASE_REPO}: {pr.title}"
             }
         except GithubException as e:
             logger.error("GitHub API error: %s", e.data.get('message', str(e)))
