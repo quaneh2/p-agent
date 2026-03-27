@@ -275,6 +275,33 @@ TOOLS = [
             "required": ["repo_name", "title", "body", "head_branch"]
         }
     },
+    {
+        "name": "open_upstream_pr",
+        "description": "Open a pull request from a branch on our fork against the upstream repository. Use this (not create_pull_request) when proposing changes to the source codebase for human review.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "Pull request title."
+                },
+                "body": {
+                    "type": "string",
+                    "description": "Pull request description. Markdown supported. Explain what changed and why."
+                },
+                "branch_name": {
+                    "type": "string",
+                    "description": "The branch on our fork containing the changes, e.g. 'feat/my-feature'."
+                },
+                "base_branch": {
+                    "type": "string",
+                    "description": "The branch on the upstream repo to merge into. Defaults to 'main'.",
+                    "default": "main"
+                }
+            },
+            "required": ["title", "body", "branch_name"]
+        }
+    },
     # --- Agent-core tools ---
     {
         "name": "list_agent_core",
