@@ -145,7 +145,7 @@ class GitHubService:
 
     def create_pull_request(self, repo_name: str, title: str, body: str,
                             head_branch: str, base_branch: str = "main") -> dict:
-        """Create a pull request in a repository."""
+        """Create a pull request within a repository (same-repo PR)."""
         try:
             repo = self._get_repo(repo_name)
             pr = repo.create_pull(
@@ -160,6 +160,40 @@ class GitHubService:
                 "title": pr.title,
                 "url": pr.html_url,
                 "message": f"PR #{pr.number} created: {pr.title}"
+            }
+        except GithubException as e:
+            logger.error("GitHub API error: %s", e.data.get('message', str(e)))
+            return {"success": False, "error": f"GitHub error: {e.data.get('message', str(e))}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def open_upstream_pr(self, title: str, body: str, branch_name: str,
+                         base_branch: str = "main") -> dict:
+        """Open a PR from our fork against the upstream repository.
+
+        The upstream repo is determined by inspecting the fork's parent.
+        The head is formatted as 'fork-owner:branch' as required by GitHub's API.
+        """
+        try:
+            fork_repo = self._get_repo("p-agent")
+            if not fork_repo.fork:
+                return {"success": False, "error": "p-agent is not a fork — cannot open upstream PR"}
+
+            upstream_repo = fork_repo.parent
+            head = f"{self.username}:{branch_name}"
+
+            pr = upstream_repo.create_pull(
+                title=title,
+                body=body,
+                head=head,
+                base=base_branch
+            )
+            return {
+                "success": True,
+                "number": pr.number,
+                "title": pr.title,
+                "url": pr.html_url,
+                "message": f"Upstream PR #{pr.number} created: {pr.title}"
             }
         except GithubException as e:
             logger.error("GitHub API error: %s", e.data.get('message', str(e)))

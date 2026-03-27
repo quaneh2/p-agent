@@ -140,6 +140,20 @@ def handle_create_pull_request(github, repo_name: str, title: str, body: str,
     return json.dumps(result)
 
 
+def handle_open_upstream_pr(github, title: str, body: str,
+                            branch_name: str, base_branch: str = "main") -> str:
+    logger.info("Opening upstream PR: %s (branch: %s)", title, branch_name)
+    result = github.open_upstream_pr(
+        title=title,
+        body=body,
+        branch_name=branch_name,
+        base_branch=base_branch
+    )
+    if not result.get("success"):
+        logger.error("Tool error: %s", result.get('error'))
+    return json.dumps(result)
+
+
 # --- Agent-core handlers ---
 
 def handle_list_agent_core(agent_core) -> str:
@@ -264,6 +278,13 @@ def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
                                           body=tool_input["body"],
                                           head_branch=tool_input["head_branch"],
                                           base_branch=tool_input.get("base_branch", "main"))
+
+    elif tool_name == "open_upstream_pr":
+        return handle_open_upstream_pr(github,
+                                       title=tool_input["title"],
+                                       body=tool_input["body"],
+                                       branch_name=tool_input["branch_name"],
+                                       base_branch=tool_input.get("base_branch", "main"))
 
     elif tool_name == "list_agent_core":
         return handle_list_agent_core(agent_core)
