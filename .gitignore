@@ -24,3 +24,7 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local notes
+IMPROVEMENTS.md
+TUTORIAL.md

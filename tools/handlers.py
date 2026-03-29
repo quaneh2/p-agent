@@ -114,11 +114,19 @@ def handle_create_issue(github, repo_name: str, title: str, body: str) -> str:
     return json.dumps(result)
 
 
-def handle_create_branch(github, repo_name: str, branch_name: str, from_branch: str = "main") -> str:
+def handle_create_branch(github, get_workspace, repo_name: str, branch_name: str, from_branch: str = "main") -> str:
     logger.info("[%s] Creating branch: %s from %s", repo_name, branch_name, from_branch)
     result = github.create_branch(repo_name=repo_name, branch_name=branch_name, from_branch=from_branch)
     if not result.get("success"):
         logger.error("Tool error: %s", result.get('error'))
+        return json.dumps(result)
+    # Check out the new branch locally so subsequent commits go to the right place
+    logger.info("[%s] Checking out branch locally: %s", repo_name, branch_name)
+    checkout_result = get_workspace(repo_name).checkout_branch(branch_name)
+    if not checkout_result.get("success"):
+        logger.warning("[%s] Branch created on GitHub but local checkout failed: %s",
+                       repo_name, checkout_result.get('error'))
+        result["checkout_warning"] = checkout_result.get("error")
     return json.dumps(result)
 
 
@@ -145,6 +153,17 @@ def handle_create_pull_request(github, repo_name: str, title: str, body: str,
     )
     if not result.get("success"):
         logger.error("Tool error: %s", result.get('error'))
+    return json.dumps(result)
+
+
+def handle_check_ci_status(github, repo_name: str, branch_name: str) -> str:
+    logger.info("[%s] Checking CI status for branch: %s", repo_name, branch_name)
+    result = github.check_ci_status(repo_name=repo_name, branch_name=branch_name)
+    if result.get("passed"):
+        logger.info("CI passed for %s/%s", repo_name, branch_name)
+    elif result.get("success"):
+        logger.warning("CI failed for %s/%s: %s", repo_name, branch_name,
+                       result.get("failed_steps"))
     return json.dumps(result)
 
 
@@ -178,31 +197,19 @@ def handle_read_agent_core(agent_core, file_path: str) -> str:
 
 def handle_create_agent_core(agent_core, file_path: str, content: str, commit_message: str) -> str:
     logger.info("Creating agent-core file: %s", file_path)
-    result = agent_core.create_file(
-        file_path=file_path,
-        content=content,
-        commit_message=commit_message
-    )
+    result = agent_core.upsert_file(file_path=file_path, content=content, commit_message=commit_message)
     return json.dumps(result)
 
 
 def handle_update_memory(agent_core, content: str, commit_message: str) -> str:
     logger.info("Updating memory: %s", commit_message)
-    result = agent_core.update_file(
-        file_path="MEMORY.md",
-        content=content,
-        commit_message=commit_message
-    )
+    result = agent_core.upsert_file(file_path="MEMORY.md", content=content, commit_message=commit_message)
     return json.dumps(result)
 
 
 def handle_update_agent_core(agent_core, file_path: str, content: str, commit_message: str) -> str:
     logger.info("Updating agent-core file: %s", file_path)
-    result = agent_core.update_file(
-        file_path=file_path,
-        content=content,
-        commit_message=commit_message
-    )
+    result = agent_core.upsert_file(file_path=file_path, content=content, commit_message=commit_message)
     return json.dumps(result)
 
 
@@ -324,3 +331,4 @@ def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
 
     else:
         return json.dumps({"error": f"Unknown tool: {tool_name}"})
+    return handler()

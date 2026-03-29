@@ -1,10 +1,11 @@
 """
 Autonomous Email Agent
 ==========================================
-A simple agent that polls its Gmail inbox and replies to emails.
+A simple agent that polls its Gmail inbox and Telegram for messages and replies.
 """
 
 import os
+import json
 import logging
 import argparse
 import time
@@ -15,10 +16,13 @@ from config import (
     POLL_INTERVAL_SECONDS,
     AUTHORIZED_SENDERS,
     CLAUDE_MODEL,
+    TELEGRAM_BOT_TOKEN,
+    AGENT_CORE_DIR,
 )
-from prompts import load_system_prompt, EMAIL_RECEIVED_TEMPLATE
+from prompts import load_system_prompt, EMAIL_RECEIVED_TEMPLATE, TELEGRAM_MESSAGE_TEMPLATE
 from tools import TOOLS, handle_tool_call
-from services import Workspace, EmailService, AgentCore, GitHubService
+from services import Workspace, EmailService, AgentCore, GitHubService, TelegramService
+from utils import build_messages, is_authorized_email_sender, is_authorized_telegram_user
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,12 +32,17 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+MAX_TELEGRAM_HISTORY = 20  # message turns to keep per chat session
+
+
 
 class EmailAgent:
     def __init__(self):
         self.email_service = None
+        self.telegram_service = None
         self.claude = None
         self._workspaces: dict[str, Workspace] = {}
+        self._telegram_sessions: dict[int, list] = {}
         self.agent_core = None
         self.github_service = None
 
@@ -66,7 +75,7 @@ class EmailAgent:
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable not set")
 
-        self.claude = anthropic.Anthropic(api_key=api_key, max_retries=5)
+        self.claude = anthropic.Anthropic(api_key=api_key, max_retries=10)
         logger.info("Claude client initialised (model: %s)", CLAUDE_MODEL)
         return self
 
@@ -87,35 +96,74 @@ class EmailAgent:
         self.agent_core.init()
         return self
 
-    def is_authorized_sender(self, sender):
-        """Check if sender is in authorized list."""
-        if not AUTHORIZED_SENDERS:
-            logger.error("No authorized senders configured — rejecting all emails")
-            return False
+    def sync_codebase(self):
+        """
+        Sync fork main with upstream and clean up merged branches.
+        Also pulls the local p-agent workspace if already initialised so it
+        stays in sync with the freshly-updated fork.
+        """
+        logger.info("Syncing fork with upstream...")
+        result = self.github_service.sync_fork_with_upstream()
+        if result.get("success"):
+            logger.info("Fork sync: %s", result["message"])
+        else:
+            logger.warning("Fork sync failed (non-fatal): %s", result.get("error"))
 
-        email = sender
-        if '<' in sender:
-            email = sender.split('<')[1].split('>')[0]
+        result = self.github_service.cleanup_merged_branches()
+        if result.get("success"):
+            deleted = result.get("deleted", [])
+            if deleted:
+                logger.info("Deleted merged branches: %s", ", ".join(deleted))
+        else:
+            logger.warning("Branch cleanup failed (non-fatal): %s", result.get("error"))
 
-        return email.lower() in [s.lower() for s in AUTHORIZED_SENDERS]
+        if "p-agent" in self._workspaces:
+            self._workspaces["p-agent"].pull_latest()
 
-    def process_email(self, email):
-        """Process an email using Claude with tool support."""
-        self.agent_core.pull_latest()
-        system_prompt = load_system_prompt()
+    def init_telegram(self):
+        """Initialize Telegram service if a bot token is configured."""
+        if not TELEGRAM_BOT_TOKEN:
+            logger.info("No TELEGRAM_BOT_TOKEN configured — Telegram disabled")
+            return self
+        self._telegram_sessions = self._load_telegram_sessions()
+        self.telegram_service = TelegramService(TELEGRAM_BOT_TOKEN)
+        self.telegram_service.skip_pending()
+        logger.info("Telegram service initialised")
+        return self
 
-        user_message = EMAIL_RECEIVED_TEMPLATE.format(
-            sender=email['sender'],
-            subject=email['subject'],
-            body=email['body']
+    def _load_telegram_sessions(self) -> dict:
+        """Load persisted Telegram session histories from agent-core."""
+        sessions_path = AGENT_CORE_DIR / "telegram_sessions.json"
+        if not sessions_path.exists():
+            return {}
+        try:
+            data = json.loads(sessions_path.read_text())
+            # JSON keys are always strings; convert back to int chat IDs
+            return {int(k): v for k, v in data.items()}
+        except Exception as e:
+            logger.warning("Could not load Telegram sessions (%s) — starting fresh", e)
+            return {}
+
+    def _save_telegram_sessions(self):
+        """Persist Telegram session histories to agent-core, committing and pushing."""
+        result = self.agent_core.upsert_file(
+            "telegram_sessions.json",
+            json.dumps(self._telegram_sessions, indent=2),
+            "Update Telegram session history",
         )
+        if not result.get("success"):
+            logger.error("Failed to save Telegram sessions: %s", result.get("error"))
 
-        messages = [{"role": "user", "content": user_message}]
-
+    def _run_claude(self, messages: list, system_prompt: str) -> str:
+        """
+        Core Claude tool-use loop shared by all channels.
+        Runs until Claude stops requesting tools, then returns the final text response.
+        """
+        messages = list(messages)  # own the defensive copy; callers' lists are not mutated
         try:
             response = self.claude.messages.create(
                 model=CLAUDE_MODEL,
-                max_tokens=4096,
+                max_tokens=16384,
                 system=system_prompt,
                 tools=TOOLS,
                 messages=messages
@@ -138,7 +186,7 @@ class EmailAgent:
 
                 response = self.claude.messages.create(
                     model=CLAUDE_MODEL,
-                    max_tokens=4096,
+                    max_tokens=16384,
                     system=system_prompt,
                     tools=TOOLS,
                     messages=messages
@@ -150,6 +198,62 @@ class EmailAgent:
         except Exception as e:
             logger.error("Claude API error: %s", e)
             return f"Something went wrong on my end. Please try again.\n\n(Error: {str(e)[:100]})"
+
+    def process_email(self, email):
+        """Process an email using Claude with tool support."""
+        self.agent_core.pull_latest()
+        system_prompt = load_system_prompt()
+
+        user_message = EMAIL_RECEIVED_TEMPLATE.format(
+            sender=email['sender'],
+            subject=email['subject'],
+            body=email['body']
+        )
+
+        thread_history = self.email_service.get_thread_context(
+            email['thread_id'], email['id']
+        )
+        messages = build_messages(thread_history, user_message)
+        return self._run_claude(messages, system_prompt)
+
+    def process_telegram_update(self, update: dict) -> str:
+        """
+        Process a Telegram message using Claude with tool support.
+
+        Maintains an in-memory conversation history per chat ID so the agent
+        has multi-turn context within a session. History resets on restart.
+        """
+        message = update['message']
+        chat_id = message['chat']['id']
+        text = message.get('text', '')
+
+        user = message.get('from', {})
+        sender_name = user.get('first_name', 'User')
+        if user.get('last_name'):
+            sender_name += f" {user['last_name']}"
+
+        self.agent_core.pull_latest()
+        system_prompt = load_system_prompt()
+
+        # Get or create session history for this chat
+        history = self._telegram_sessions.setdefault(chat_id, [])
+
+        user_content = TELEGRAM_MESSAGE_TEMPLATE.format(
+            sender_name=sender_name,
+            text=text,
+        )
+        history.append({"role": "user", "content": user_content})
+
+        response = self._run_claude(history, system_prompt)
+
+        history.append({"role": "assistant", "content": response})
+
+        # Trim session to keep the context window manageable
+        if len(history) > MAX_TELEGRAM_HISTORY:
+            self._telegram_sessions[chat_id] = history[-MAX_TELEGRAM_HISTORY:]
+
+        self._save_telegram_sessions()
+        return response
 
 
 def run_agent():
@@ -164,6 +268,8 @@ def run_agent():
     agent.init_github()
     agent.init_workspace()
     agent.init_agent_core()
+    agent.init_telegram()
+    agent.sync_codebase()
 
     logger.info("Polling interval: %ss | Authorized senders: %s",
                 POLL_INTERVAL_SECONDS, AUTHORIZED_SENDERS or "ALL (not configured)")
@@ -171,6 +277,7 @@ def run_agent():
 
     while True:
         try:
+            # --- Email ---
             logger.debug("Checking for new emails...")
             emails = agent.email_service.get_unread_emails()
 
@@ -185,22 +292,51 @@ def run_agent():
 
                     logger.info("Email from: %s | Subject: %s", email['sender'], email['subject'])
 
-                    if not agent.is_authorized_sender(email['sender']):
+                    if not is_authorized_email_sender(email['sender']):
                         logger.warning("Skipping unauthorized sender: %s", email['sender'])
                         agent.email_service.mark_as_read(email['id'])
                         continue
 
-                    logger.info("Processing with Claude...")
+                    logger.info("Processing email with Claude...")
                     response = agent.process_email(email)
 
-                    logger.info("Sending reply...")
+                    logger.info("Sending email reply...")
                     sent = agent.email_service.send_reply(email, response)
 
                     if sent:
                         agent.email_service.mark_as_read(email['id'])
-                        logger.info("Done")
+                        logger.info("Email done")
                     else:
-                        logger.error("Reply failed — email left unread for retry")
+                        logger.error("Email reply failed — left unread for retry")
+
+            # --- Telegram ---
+            if agent.telegram_service:
+                logger.debug("Checking for Telegram messages...")
+                updates = agent.telegram_service.get_updates()
+
+                if updates:
+                    logger.info("Found %d Telegram update(s)", len(updates))
+
+                for update in updates:
+                    if 'message' not in update:
+                        continue
+
+                    message = update['message']
+                    if 'text' not in message:
+                        continue
+
+                    user_id = message.get('from', {}).get('id')
+                    chat_id = message['chat']['id']
+
+                    if not is_authorized_telegram_user(user_id):
+                        logger.warning("Skipping unauthorized Telegram user: %s", user_id)
+                        continue
+
+                    logger.info("Processing Telegram message from user %s...", user_id)
+                    response = agent.process_telegram_update(update)
+
+                    agent.telegram_service.send_message(chat_id, response)
+                    logger.info("Telegram reply sent")
 
             time.sleep(POLL_INTERVAL_SECONDS)
 

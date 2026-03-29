@@ -14,6 +14,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from config import SCOPES
+from utils.email_utils import strip_reply_prefix, extract_body
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ class EmailService:
             sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'unknown')
             message_id = next((h['value'] for h in headers if h['name'].lower() == 'message-id'), None)
 
-            body = self._extract_body(message['payload'])
+            body = extract_body(message['payload'])
 
             return {
                 'id': msg_id,
@@ -103,29 +104,12 @@ class EmailService:
             logger.error("Failed to get email details for %s: %s", msg_id, error)
             return None
 
-    def _extract_body(self, payload):
-        """Extract plain text body from email payload."""
-        if 'body' in payload and payload['body'].get('data'):
-            return base64.urlsafe_b64decode(payload['body']['data']).decode('utf-8')
-
-        if 'parts' in payload:
-            for part in payload['parts']:
-                if part['mimeType'] == 'text/plain':
-                    if part['body'].get('data'):
-                        return base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
-                elif 'parts' in part:
-                    result = self._extract_body(part)
-                    if result:
-                        return result
-
-        return "(could not extract body)"
-
     def send_reply(self, original_email, reply_text):
         """Send a reply to an email."""
         try:
             message = MIMEText(reply_text)
             message['to'] = original_email['sender']
-            message['subject'] = f"Re: {original_email['subject']}"
+            message['subject'] = f"Re: {strip_reply_prefix(original_email['subject'])}"
             if original_email.get('message_id'):
                 message['In-Reply-To'] = original_email['message_id']
                 message['References'] = original_email['message_id']
@@ -145,6 +129,35 @@ class EmailService:
         except HttpError as error:
             logger.error("Failed to send reply: %s", error)
             return None
+
+    def get_thread_context(self, thread_id, current_msg_id):
+        """
+        Fetch prior messages in a thread as a list of {role, content} dicts.
+
+        Uses Gmail's SENT label to distinguish agent replies (assistant) from
+        incoming emails (user). Returns at most 10 prior messages so thread
+        history doesn't dominate the context window.
+        """
+        try:
+            thread = self.service.users().threads().get(
+                userId='me',
+                id=thread_id,
+                format='full'
+            ).execute()
+
+            history = []
+            for msg in thread.get('messages', []):
+                if msg['id'] == current_msg_id:
+                    continue
+                label_ids = msg.get('labelIds', [])
+                role = 'assistant' if 'SENT' in label_ids else 'user'
+                body = extract_body(msg['payload'])
+                history.append({'role': role, 'content': body})
+
+            return history[-10:]
+        except HttpError as error:
+            logger.error("Failed to get thread context for %s: %s", thread_id, error)
+            return []
 
     def mark_as_read(self, msg_id):
         """Mark an email as read."""
