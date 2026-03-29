@@ -372,7 +372,7 @@ TOOLS = [
     },
     {
         "name": "update_memory",
-        "description": "Update your persistent memory (MEMORY.md). Use this at the end of a conversation to record anything worth remembering — preferences expressed, instructions given, useful context. Write the full updated content each time; this replaces the existing memory. Keep it concise.",
+        "description": "Update your persistent memory (MEMORY.md). Always call this at the end of every conversation unless the email was purely trivial. Memory has three sections: Episodic (one-line log per email: [date] sender — task — outcome, keep last 20), Semantic (persistent facts about the user, their preferences, contacts, projects — the most important section), Procedural (what approaches work or fail: 'When asked to X, do Y'). Read the current MEMORY.md first, then write the full updated content.",
         "input_schema": {
             "type": "object",
             "properties": {

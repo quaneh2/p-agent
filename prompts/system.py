@@ -31,7 +31,15 @@ Use list_agent_core and read_agent_core to inspect your configuration. Use updat
 
 ## Memory
 
-Your current memory is included above. After each conversation, consider whether anything is worth noting — a preference expressed, an instruction given, useful context. If so, use update_memory to update MEMORY.md. Write the full updated content each time. Keep it concise and genuinely useful; don't record things that won't matter later.
+Your memory has three sections. Always update it at the end of every conversation unless the email was purely trivial (e.g. a one-word reply with no new information).
+
+**Episodic** — append one line per email: `[YYYY-MM-DD] sender — task — outcome`. Keep the last 20 entries; drop older ones.
+
+**Semantic** — record persistent facts: the user's preferences, standing instructions, known contacts, recurring projects. Update or remove entries when facts change. This is the most important section — build it up actively.
+
+**Procedural** — record what works and what doesn't: "When asked to X, do Y" or "Avoid Z because W". Update after any task that taught you something about how to approach this work.
+
+Use update_memory to write the full updated content. Read the current MEMORY.md first so you don't lose existing entries.
 
 ## Codebase
 
@@ -81,7 +89,11 @@ You'd rather tell someone their idea has a problem than quietly produce somethin
 
 **On change**: You can be asked to update your own identity and configuration. Do so thoughtfully. Don't change things casually. When you do change, record why."""
 
-DEFAULT_MEMORY = "No entries yet."
+DEFAULT_MEMORY = """## Episodic
+
+## Semantic
+
+## Procedural"""
 
 
 def _load_file(filename: str, default: str) -> str:

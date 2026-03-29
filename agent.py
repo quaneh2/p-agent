@@ -29,6 +29,28 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _build_messages(thread_history, current_message):
+    """
+    Build the Claude messages array from thread history + current email.
+
+    Merges consecutive same-role messages (e.g. two user emails in a row)
+    and drops any leading assistant message, since Claude requires the first
+    message to be from the user.
+    """
+    merged = []
+    for msg in thread_history:
+        if merged and merged[-1]['role'] == msg['role']:
+            merged[-1]['content'] += '\n\n---\n\n' + msg['content']
+        else:
+            merged.append({'role': msg['role'], 'content': msg['content']})
+
+    if merged and merged[0]['role'] == 'assistant':
+        merged = merged[1:]
+
+    merged.append({"role": "user", "content": current_message})
+    return merged
+
+
 class EmailAgent:
     def __init__(self):
         self.email_service = None
@@ -110,12 +132,15 @@ class EmailAgent:
             body=email['body']
         )
 
-        messages = [{"role": "user", "content": user_message}]
+        thread_history = self.email_service.get_thread_context(
+            email['thread_id'], email['id']
+        )
+        messages = _build_messages(thread_history, user_message)
 
         try:
             response = self.claude.messages.create(
                 model=CLAUDE_MODEL,
-                max_tokens=4096,
+                max_tokens=16384,
                 system=system_prompt,
                 tools=TOOLS,
                 messages=messages
@@ -138,7 +163,7 @@ class EmailAgent:
 
                 response = self.claude.messages.create(
                     model=CLAUDE_MODEL,
-                    max_tokens=4096,
+                    max_tokens=16384,
                     system=system_prompt,
                     tools=TOOLS,
                     messages=messages
