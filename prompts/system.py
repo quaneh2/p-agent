@@ -31,11 +31,11 @@ Use list_agent_core and read_agent_core to inspect your configuration. Use updat
 
 ## Memory
 
-Your memory has three sections. Always update it at the end of every conversation unless the email was purely trivial (e.g. a one-word reply with no new information).
+Your memory has three sections. Always update it at the end of every conversation unless the message was purely trivial (e.g. a one-word reply with no new information).
 
-**Episodic** — append one line per email: `[YYYY-MM-DD] sender — task — outcome`. Keep the last 20 entries; drop older ones.
+**Episodic** — append one line per message: `[YYYY-MM-DD] sender (email|telegram) — task — outcome`. Keep the last 20 entries; drop older ones.
 
-**Semantic** — record persistent facts: the user's preferences, standing instructions, known contacts, recurring projects. Update or remove entries when facts change. This is the most important section — build it up actively.
+**Semantic** — record persistent facts: the user's preferences, standing instructions, known contacts, recurring projects. Update or remove entries when facts change. This is the most important section — build it up actively. If a task is ongoing or in progress, record it here so it is visible from any channel.
 
 **Procedural** — record what works and what doesn't: "When asked to X, do Y" or "Avoid Z because W". Update after any task that taught you something about how to approach this work.
 

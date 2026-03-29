@@ -5,6 +5,7 @@ A simple agent that polls its Gmail inbox and Telegram for messages and replies.
 """
 
 import os
+import json
 import logging
 import argparse
 import time
@@ -17,6 +18,7 @@ from config import (
     CLAUDE_MODEL,
     TELEGRAM_BOT_TOKEN,
     TELEGRAM_AUTHORIZED_IDS,
+    TELEGRAM_SESSIONS_FILE,
 )
 from prompts import load_system_prompt, EMAIL_RECEIVED_TEMPLATE, TELEGRAM_MESSAGE_TEMPLATE
 from tools import TOOLS, handle_tool_call
@@ -120,10 +122,30 @@ class EmailAgent:
         if not TELEGRAM_BOT_TOKEN:
             logger.info("No TELEGRAM_BOT_TOKEN configured — Telegram disabled")
             return self
+        self._telegram_sessions = self._load_telegram_sessions()
         self.telegram_service = TelegramService(TELEGRAM_BOT_TOKEN)
         self.telegram_service.skip_pending()
         logger.info("Telegram service initialised")
         return self
+
+    def _load_telegram_sessions(self) -> dict:
+        """Load persisted Telegram session histories from disk."""
+        if not TELEGRAM_SESSIONS_FILE.exists():
+            return {}
+        try:
+            data = json.loads(TELEGRAM_SESSIONS_FILE.read_text())
+            # JSON keys are always strings; convert back to int chat IDs
+            return {int(k): v for k, v in data.items()}
+        except Exception as e:
+            logger.warning("Could not load Telegram sessions (%s) — starting fresh", e)
+            return {}
+
+    def _save_telegram_sessions(self):
+        """Persist Telegram session histories to disk."""
+        try:
+            TELEGRAM_SESSIONS_FILE.write_text(json.dumps(self._telegram_sessions))
+        except Exception as e:
+            logger.error("Failed to save Telegram sessions: %s", e)
 
     def is_authorized_sender(self, sender):
         """Check if an email sender is in the authorized list."""
@@ -242,6 +264,7 @@ class EmailAgent:
         if len(history) > MAX_TELEGRAM_HISTORY:
             self._telegram_sessions[chat_id] = history[-MAX_TELEGRAM_HISTORY:]
 
+        self._save_telegram_sessions()
         return response
 
 
