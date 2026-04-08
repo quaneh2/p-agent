@@ -200,7 +200,6 @@ class EmailAgent:
         """Initialize skills, wiring in required services."""
         self._skills["hn_digest"] = HNDigestSkill(
             fetch_service=self.fetch_service,
-            workspace_fn=self.get_workspace,
         )
         logger.info("Skills initialised: %s", list(self._skills.keys()))
         return self
