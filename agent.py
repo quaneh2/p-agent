@@ -17,7 +17,7 @@ from config import (
     AUTHORIZED_SENDERS,
     CLAUDE_MODEL,
     TELEGRAM_BOT_TOKEN,
-    TELEGRAM_OWNER_CHAT_ID,
+    TELEGRAM_AUTHORIZED_IDS,
     AGENT_CORE_DIR,
 )
 from prompts import load_system_prompt, EMAIL_RECEIVED_TEMPLATE, TELEGRAM_MESSAGE_TEMPLATE
@@ -512,9 +512,12 @@ def run_agent():
                         result = agent.execute_scheduled_task(task)
                         agent.scheduler.mark_task_complete(task["id"])
                         agent.dashboard_skill.update()
-                        if TELEGRAM_OWNER_CHAT_ID and agent.telegram_service:
+                        if TELEGRAM_AUTHORIZED_IDS and agent.telegram_service:
+                            # For direct (private) Telegram chats, chat_id == user_id,
+                            # so the first authorized ID doubles as the notification target.
+                            owner_chat_id = TELEGRAM_AUTHORIZED_IDS[0]
                             msg = f"Scheduled task complete: {task['name']}\n\n{result}"
-                            agent.telegram_service.send_message(TELEGRAM_OWNER_CHAT_ID, msg)
+                            agent.telegram_service.send_message(owner_chat_id, msg)
                         logger.info("Scheduled task done: %s", task["name"])
                     except Exception as task_err:
                         logger.error(

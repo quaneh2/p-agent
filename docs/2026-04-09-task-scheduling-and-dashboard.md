@@ -311,4 +311,4 @@ The agent creates a `one_time` task with `instruction_type="natural_language"`. 
 | `services/__init__.py` | Export `SchedulerService` |
 | `skills/__init__.py` | Export `DashboardSkill` |
 
-New environment variable: `TELEGRAM_OWNER_CHAT_ID` — the Telegram chat ID to notify when scheduled tasks complete. If unset, tasks run silently.
+No new environment variables are required. Completion notifications go to `TELEGRAM_AUTHORIZED_IDS[0]` — for a private Telegram bot conversation, the user ID and chat ID are the same number, so the existing config already contains the right value.
