@@ -377,6 +377,39 @@ TOOLS = [
             "required": []
         }
     },
+    {
+        "name": "fetch_vietnamese_articles",
+        "description": (
+            "Fetch recent article listings from Vietnamese news sites (VNExpress, Tuổi Trẻ, "
+            "Thanh Niên) for a Vietnamese language study exercise. "
+            "Returns the plain-text content of 1–3 section pages so you can identify "
+            "suitable article headlines. "
+            "After calling this: (1) scan the returned page text for article titles, "
+            "(2) pick one whose vocabulary seems accessible for a B1→B2 learner, "
+            "(3) call fetch_url on the article URL to get its full text, "
+            "(4) select a self-contained paragraph of 150–300 words, "
+            "(5) present the Vietnamese paragraph to the user for translation. "
+            "Use the topic parameter to match the user's interests."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "enum": ["current_affairs", "nature", "food", "travel"],
+                    "description": (
+                        "Optional topic filter. "
+                        "current_affairs = world/domestic news (thế giới / thời sự), "
+                        "nature = science and environment (khoa học), "
+                        "food = cuisine and recipes (ẩm thực), "
+                        "travel = travel and tourism (du lịch). "
+                        "Omit to fetch from all sections."
+                    )
+                }
+            },
+            "required": []
+        }
+    },
     # --- Scheduling tools ---
     {
         "name": "add_scheduled_task",
