@@ -10,6 +10,7 @@ An always-on AI agent with a persistent identity, memory, and the ability to adm
 - Creates, edits, and manages files across multiple GitHub repositories
 - Maintains persistent memory and a self-modifiable identity
 - Proposes changes to its own codebase via GitHub pull requests, with CI gating
+- Runs scheduled tasks (cron or one-time) and publishes a live dashboard to GitHub Pages
 
 ## Project structure
 
@@ -35,6 +36,11 @@ services/
   agent_core.py           # Agent-core repo management (identity, soul, memory)
   github_service.py       # GitHub API: repos, issues, branches, PRs, CI status, fork sync
   git_repo.py             # Base class for git repository operations
+  scheduler.py            # Task scheduling: persist, query due tasks, cron via croniter
+
+skills/
+  hn_digest.py            # Hacker News digest: fetch, score, summarise, save to workspace
+  dashboard.py            # GitHub Pages dashboard: generate HTML, push to *.github.io repo
 
 tools/
   definitions.py          # Claude tool schemas
@@ -43,12 +49,16 @@ tools/
 tests/
   test_build_messages.py  # Unit tests for build_messages()
   test_email.py           # Unit tests for strip_reply_prefix()
+  test_scheduler.py       # Unit tests for SchedulerService
+
+docs/                     # Technical write-ups for significant features
 
 agent-core/               # Local clone of the agent's configuration repo
   IDENTITY.md             # Character and working style (editable by agent)
   SOUL.md                 # Values and principles (editable by agent)
   MEMORY.md               # Persistent memory across conversations
   telegram_sessions.json  # Persisted Telegram conversation history
+  SCHEDULES.json          # Persisted task schedule
 
 repos/                    # Local clones of agent-managed repositories
   workspace/              # Default general-purpose workspace
@@ -82,6 +92,14 @@ These are loaded and composed into the system prompt on every message. The agent
 - `open_upstream_pr` — open a pull request against the upstream codebase repo
 - `check_ci_status` — poll GitHub Actions for a branch's CI result
 
+**Skills**
+- `run_hn_digest` — fetch HN front page, score stories for relevance, summarise and save to workspace
+
+**Scheduling**
+- `add_scheduled_task` — schedule a task on a cron expression or a specific future datetime
+- `remove_scheduled_task` — cancel a scheduled task by ID
+- `list_scheduled_tasks` — list all tasks (active, paused, completed)
+
 **Self-modification**
 - `list_agent_core`, `read_agent_core` — inspect configuration files
 - `create_agent_core`, `update_agent_core` — modify identity, soul, or other config files
@@ -110,7 +128,7 @@ When a PR is merged and Render redeploys, the fork is synced with upstream on th
 | `AUTHORIZED_SENDERS` | JSON array of email addresses allowed to contact the agent |
 | `UPSTREAM_CODEBASE_REPO` | Upstream repo for self-modification PRs (default: `quaneh2/p-agent`) |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token (Telegram disabled if unset) |
-| `TELEGRAM_AUTHORIZED_IDS` | JSON array of Telegram user IDs allowed to contact the agent |
+| `TELEGRAM_AUTHORIZED_IDS` | JSON array of Telegram user IDs allowed to contact the agent. The first ID also receives scheduled task completion notifications. |
 
 ## Deployment
 
@@ -120,9 +138,10 @@ The agent is deployed on [Render](https://render.com) as a background worker. On
 2. Initialises the GitHub service
 3. Clones (or pulls) the default workspace repo
 4. Clones (or pulls) the agent-core repo, seeding default configuration if needed
-5. Initialises Telegram (if `TELEGRAM_BOT_TOKEN` is set), skipping any backlogged messages
-6. Syncs the fork with upstream and cleans up merged branches
-7. Begins polling Gmail and Telegram every 10 seconds
+5. Loads the task schedule from `agent-core/SCHEDULES.json`
+6. Initialises Telegram (if `TELEGRAM_BOT_TOKEN` is set), skipping any backlogged messages
+7. Syncs the fork with upstream and cleans up merged branches
+8. Begins polling Gmail, Telegram, and the task schedule every 10 seconds
 
 ## Local development
 

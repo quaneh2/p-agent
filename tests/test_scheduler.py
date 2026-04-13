@@ -28,6 +28,9 @@ SchedulerService = _mod.SchedulerService
 # Helpers
 # ---------------------------------------------------------------------------
 
+_FAKE_SKILLS = {"run_hn_digest": object()}  # minimal stub — only the key matters for validation
+
+
 def _make_scheduler(tasks=None):
     """Return a SchedulerService with a mocked agent_core."""
     agent_core = MagicMock()
@@ -40,7 +43,7 @@ def _make_scheduler(tasks=None):
             "content": json.dumps({"tasks": tasks}),
         }
     agent_core.upsert_file.return_value = {"success": True}
-    sched = SchedulerService(agent_core)
+    sched = SchedulerService(agent_core, _FAKE_SKILLS)
     sched.load_tasks()
     return sched
 

@@ -155,3 +155,19 @@ def load_system_prompt() -> str:
 
 ---
 {CAPABILITIES}"""
+
+
+def load_lean_system_prompt() -> str:
+    """
+    Lean system prompt for scheduled tasks: identity + soul + memory only.
+    Excludes the CAPABILITIES section (workspace, codebase, scheduling tools)
+    to keep token usage low for simple recurring instructions.
+    """
+    identity = _load_file("IDENTITY.md", DEFAULT_IDENTITY)
+    soul = _load_file("SOUL.md", DEFAULT_SOUL)
+    memory = _load_file("MEMORY.md", DEFAULT_MEMORY)
+
+    return (
+        f"{identity}\n\n---\n\n{soul}\n\n---\n\n## Memory\n\n{memory}\n\n---\n\n"
+        "You are running a scheduled task. Complete the instruction below and respond with the result."
+    )
