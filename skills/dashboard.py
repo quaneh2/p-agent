@@ -38,13 +38,11 @@ class DashboardSkill:
         Full update cycle:
         1. Load current tasks from agent-core
         2. Generate HTML
-        3. Ensure GitHub Pages repo exists
-        4. Push index.html
+        3. Push index.html (repo is created on first call if needed)
         """
         try:
             tasks = self._load_tasks()
             html = self.generate_html(tasks)
-            self._ensure_repo_exists()
             repo = self._get_repo()
             repo.write_file("index.html", html)
             result = repo.commit_and_push("Update dashboard")
@@ -289,8 +287,12 @@ class DashboardSkill:
                 raise
 
     def _get_repo(self) -> GitRepo:
-        """Lazy-init the local git clone of the dashboard repo."""
+        """
+        Lazy-init the local git clone of the dashboard repo.
+        Ensures the GitHub repo exists on the first call only.
+        """
         if self._repo is None:
+            self._ensure_repo_exists()
             self._repo = GitRepo(DASHBOARD_DIR, DASHBOARD_REPO_NAME)
             self._repo.init()
         else:

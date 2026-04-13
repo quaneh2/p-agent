@@ -24,12 +24,11 @@ logger = logging.getLogger(__name__)
 
 SCHEDULES_FILE = "SCHEDULES.json"
 
-KNOWN_SKILLS = {"run_hn_digest"}
-
 
 class SchedulerService:
-    def __init__(self, agent_core):
+    def __init__(self, agent_core, skills: dict):
         self.agent_core = agent_core
+        self._skills = skills  # live reference — reflects skills added after init
         self._tasks: list[dict] = []
 
     # ------------------------------------------------------------------
@@ -93,8 +92,9 @@ class SchedulerService:
             return {"success": False, "error": "instruction is required"}
         if instruction_type not in ("skill", "natural_language"):
             return {"success": False, "error": "instruction_type must be 'skill' or 'natural_language'"}
-        if instruction_type == "skill" and instruction not in KNOWN_SKILLS:
-            return {"success": False, "error": f"Unknown skill '{instruction}'. Known skills: {sorted(KNOWN_SKILLS)}"}
+        if instruction_type == "skill" and instruction not in self._skills:
+            known = sorted(self._skills.keys())
+            return {"success": False, "error": f"Unknown skill '{instruction}'. Known skills: {known}"}
 
         task: dict = {
             "id": str(uuid.uuid4()),

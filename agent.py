@@ -20,7 +20,7 @@ from config import (
     TELEGRAM_AUTHORIZED_IDS,
     AGENT_CORE_DIR,
 )
-from prompts import load_system_prompt, EMAIL_RECEIVED_TEMPLATE, TELEGRAM_MESSAGE_TEMPLATE
+from prompts import load_system_prompt, load_lean_system_prompt, EMAIL_RECEIVED_TEMPLATE, TELEGRAM_MESSAGE_TEMPLATE
 from tools import TOOLS, handle_tool_call
 from services import Workspace, EmailService, AgentCore, GitHubService, TelegramService, FetchService, SchedulerService
 from skills import HNDigestSkill, DashboardSkill
@@ -212,7 +212,7 @@ class EmailAgent:
 
     def init_scheduler(self):
         """Initialize the task scheduler, loading persisted tasks from agent-core."""
-        self.scheduler = SchedulerService(self.agent_core)
+        self.scheduler = SchedulerService(self.agent_core, self._skills)
         self.scheduler.load_tasks()
         logger.info("Scheduler initialised with %d task(s)", len(self.scheduler.list_tasks()))
         return self
@@ -249,14 +249,7 @@ class EmailAgent:
         Includes identity + memory only — no workspace/codebase context.
         This keeps credit usage low for simple recurring instructions.
         """
-        from prompts.system import _load_file, DEFAULT_IDENTITY, DEFAULT_SOUL, DEFAULT_MEMORY
-        identity = _load_file("IDENTITY.md", DEFAULT_IDENTITY)
-        soul = _load_file("SOUL.md", DEFAULT_SOUL)
-        memory = _load_file("MEMORY.md", DEFAULT_MEMORY)
-        return (
-            f"{identity}\n\n---\n\n{soul}\n\n---\n\n## Memory\n\n{memory}\n\n---\n\n"
-            "You are running a scheduled task. Complete the instruction below and respond with the result."
-        )
+        return load_lean_system_prompt()
 
     def sync_codebase(self):
         """
@@ -506,12 +499,13 @@ def run_agent():
             # --- Scheduler ---
             if agent.scheduler:
                 due_tasks = agent.scheduler.get_due_tasks()
+                completed_any = False
                 for task in due_tasks:
                     logger.info("Running scheduled task: %s (id=%s)", task["name"], task["id"])
                     try:
                         result = agent.execute_scheduled_task(task)
                         agent.scheduler.mark_task_complete(task["id"])
-                        agent.dashboard_skill.update()
+                        completed_any = True
                         if TELEGRAM_AUTHORIZED_IDS and agent.telegram_service:
                             # For direct (private) Telegram chats, chat_id == user_id,
                             # so the first authorized ID doubles as the notification target.
@@ -523,6 +517,9 @@ def run_agent():
                         logger.error(
                             "Scheduled task '%s' failed: %s", task["name"], task_err, exc_info=True
                         )
+                # Push dashboard once after all due tasks have run, not once per task
+                if completed_any:
+                    agent.dashboard_skill.update()
 
             time.sleep(POLL_INTERVAL_SECONDS)
 
