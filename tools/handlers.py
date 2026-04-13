@@ -213,6 +213,14 @@ def handle_run_hn_digest(skills) -> str:
     return json.dumps(result)
 
 
+def handle_fetch_vietnamese_articles(skills, topic: str = None) -> str:
+    logger.info("Fetching Vietnamese articles (topic=%s)", topic or "all")
+    result = skills["vietnamese_study"].run(topic=topic)
+    if not result.get("success"):
+        logger.error("Vietnamese article fetch failed: %s", result.get('error'))
+    return json.dumps(result)
+
+
 # --- Scheduling handlers ---
 
 def handle_add_scheduled_task(scheduler, dashboard, tool_input: dict) -> str:
@@ -315,6 +323,7 @@ def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
         "fetch_url":        lambda: handle_fetch_url(ft, tool_input["url"]),
         # Skills
         "run_hn_digest":    lambda: handle_run_hn_digest(sk),
+        "fetch_vietnamese_articles": lambda: handle_fetch_vietnamese_articles(sk, tool_input.get("topic")),
         # Scheduling
         "add_scheduled_task":    lambda: handle_add_scheduled_task(sc, db, tool_input),
         "remove_scheduled_task": lambda: handle_remove_scheduled_task(sc, db, tool_input["task_id"]),
