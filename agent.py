@@ -428,6 +428,7 @@ def run_agent():
     agent.init_dashboard()
     agent.init_telegram()
     agent.sync_codebase()
+    agent.dashboard_skill.update()
 
     logger.info("Polling interval: %ss | Authorized senders: %s",
                 POLL_INTERVAL_SECONDS, AUTHORIZED_SENDERS or "ALL (not configured)")
