@@ -152,37 +152,41 @@ For each word, randomly assign a card direction and type before the quiz begins:
   - *word*: ask for the bare translation
   - *sentence*: fill-in-the-blank (see formats below)
 
-**Step 3 — Run the quiz (multi-turn)**
+**Step 3 — Run the quiz in batches of 5**
 
-Present one card per message. Wait for the user's answer before moving to the next.
+Present 5 cards per message, numbered 1–5 (or fewer for the final batch). End each batch with "Reply with your answers: 1. … 2. … etc." Wait for the user's reply before presenting the next batch.
 
-**Multiple choice for weak words**: If a word's `practice_count` is 0, 1, or 2 (never or rarely seen), present the card as multiple choice with 4 options labelled A–D. Use other words from the current quiz set as distractors; prefer same word type where possible. Shuffle the options so the correct answer isn't always in the same position. For EN→VI cards, options are Vietnamese words; for VI→EN cards, options are English meanings; for sentence cards, options fill the blank.
+**Multiple choice for weak words**: If a word's `practice_count` is 0, 1, or 2 (never or rarely seen), present the card as multiple choice with 4 options labelled A–D. Use other words from the current quiz set as distractors; prefer same word type where possible. Shuffle so the correct answer isn't always in the same position. For EN→VI cards, options are Vietnamese words; for VI→EN cards, options are English meanings; for sentence cards, options fill the blank.
 
 **Open-ended for stronger words**: If `practice_count` is 3 or more, present the card as a free-text question — no options shown.
 
 **Card formats:**
 
-*EN→VI card* — show the full English sample sentence; the Vietnamese version has the target word gapped:
-> How do you say **"[English word]"** in Vietnamese?
-> *(Sample sentence: "[Full English sentence, nothing blanked]" → "[Vietnamese sentence with ___ where the target word belongs]")*
+*EN→VI card* — the English sentence is shown in full (nothing blanked); only the Vietnamese sentence has the gap:
+> How do you say **"to conserve"** in Vietnamese?
+> *(Sample sentence: "We need to **conserve** wild animal species." → "Chúng ta cần ___ các loài động vật hoang dã.")*
+
+Note: the English sentence must show the target word in full — **never** replace it with ___ on the English side of an EN→VI card.
 
 *VI→EN word card*:
 > What does **[Vietnamese]** mean? *(word type: [type])*
 
-*VI→EN sentence card* — show the full Vietnamese sentence (target word visible); the English gloss has the gap the user must fill:
+*VI→EN sentence card* — the Vietnamese sentence is shown in full (target word visible, nothing blanked); only the English gloss has the gap:
 > Fill in the blank:
-> "[Full Vietnamese sentence with the target word shown]"
-> English: "I ___ to school every day."
+> "Chúng ta cần **bảo tồn** các loài động vật hoang dã."
+> English: "We need to ___ wild animal species."
+
+Note: the Vietnamese sentence must show the target word in full — **never** replace it with ___ on the Vietnamese side of a VI→EN sentence card. The ___ appears only in the English line.
+
+**The single-blank rule**: Exactly one blank (___) appears per card. On sentence cards, the blank is always on the side the user is translating *into*. The side they are translating *from* is always shown complete.
 
 **Sample sentence selection**: Pick randomly from the entry's stored `sample_sentences` (up to 3). Generate a fresh sentence when variety is needed — never reuse the same sentence from the immediately preceding session.
 
-**Feedback after each answer**:
-- Correct: ✓ brief confirmation.
-- Wrong: ✗ give the correct answer and a one-line explanation, then continue.
+**Feedback after each batch**: Go through each answer in order. Mark ✓ correct or ✗ wrong (give correct answer + one-line reason). Then present the next batch immediately.
 
 **Step 4 — Re-queue wrong answers**
 
-After the first pass through all cards, re-present any words the user got wrong. Use the same card type as the first attempt. Give a brief note: "Let's revisit the [N] you missed." After the second pass, don't repeat further — just note any persistent gaps in the summary.
+After the first pass through all cards, collect all wrong answers and re-present them in batches of 5. Open with "Let's revisit the [N] you missed." Use the same card type as the first attempt. After the second pass, don't repeat further — note any persistent gaps in the summary.
 
 **Step 5 — Summary and save**
 
