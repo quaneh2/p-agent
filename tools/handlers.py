@@ -4,6 +4,7 @@ Tool Handlers
 
 import json
 import logging
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +260,20 @@ def handle_save_vietnamese_session(
     return json.dumps(result)
 
 
+# --- Datetime handler ---
+
+def handle_get_current_datetime() -> str:
+    now = datetime.now(timezone.utc)
+    return json.dumps({
+        "success": True,
+        "iso": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "date": now.strftime("%Y-%m-%d"),
+        "time": now.strftime("%H:%M:%S"),
+        "day_of_week": now.strftime("%A"),
+        "timezone": "UTC",
+    })
+
+
 # --- Scheduling handlers ---
 
 def handle_add_scheduled_task(scheduler, dashboard, tool_input: dict) -> str:
@@ -357,6 +372,8 @@ def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
         "create_pull_request": lambda: handle_create_pull_request(gh, tool_input["repo_name"], tool_input["title"], tool_input["body"], tool_input["head_branch"], tool_input.get("base_branch", "main")),
         "check_ci_status":  lambda: handle_check_ci_status(gh, tool_input["repo_name"], tool_input["branch_name"]),
         "open_upstream_pr": lambda: handle_open_upstream_pr(gh, tool_input["title"], tool_input["body"], tool_input["branch_name"], tool_input.get("base_branch", "main")),
+        # Datetime
+        "get_current_datetime": lambda: handle_get_current_datetime(),
         # Fetch
         "fetch_url":        lambda: handle_fetch_url(ft, tool_input["url"]),
         # Skills

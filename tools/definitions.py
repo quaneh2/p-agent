@@ -497,6 +497,22 @@ TOOLS = [
             "required": ["session_record"]
         }
     },
+    # --- Datetime tool ---
+    {
+        "name": "get_current_datetime",
+        "description": (
+            "Return the current date and time in UTC. "
+            "Use this whenever you need the current date or time — for example, when updating "
+            "learning progress, setting last_practiced dates, writing session records, "
+            "scheduling tasks, or any situation where the correct current timestamp matters. "
+            "Do not rely on your training knowledge for the current date; always call this tool."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
     # --- Scheduling tools ---
     {
         "name": "add_scheduled_task",
