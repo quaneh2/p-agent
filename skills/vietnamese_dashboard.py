@@ -23,20 +23,19 @@ _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 # CSS defined as a plain string to avoid f-string brace-escaping in CSS rules.
 _CSS = """
 :root {
-  --bg:       #1A0808;
-  --surface:  #2A1010;
-  --surface2: #3A1818;
-  --border:   #5A2020;
-  --text:     #F5E6C8;
-  --muted:    #C4A882;
-  --accent:   #C0392B;
-  --gold:     #F39C12;
-  --jade:     #2E8B57;
-  --heat-0:   #2A1010;
-  --heat-1:   #7A2020;
-  --heat-2:   #A02828;
-  --heat-3:   #C0392B;
-  --heat-4:   #E05030;
+  --bg:       #F2E6C2;
+  --paper:    #FDFAF0;
+  --text:     #1A0A06;
+  --muted:    #5C3D25;
+  --red:      #CC1100;
+  --red-dark: #7A0000;
+  --gold:     #FFD700;
+  --border:   #CC1100;
+  --heat-0:   #E8D9B0;
+  --heat-1:   #F4A07A;
+  --heat-2:   #E86040;
+  --heat-3:   #CC1100;
+  --heat-4:   #7A0000;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -47,107 +46,193 @@ body {
   line-height: 1.6;
   min-height: 100vh;
 }
-a { color: var(--gold); text-decoration: none; }
+a { color: var(--red); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
+/* ── Masthead ─────────────────────────────────────────────────── */
 header {
-  padding: 2rem 2rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 1.2rem;
+  background: var(--red);
+  text-align: center;
+  padding: 1.8rem 1.5rem 1.6rem;
+  border-bottom: 6px solid var(--red-dark);
+  position: relative;
 }
-.header-text h1 {
-  font-size: 1.8rem;
+.mast-stars {
+  font-size: 1rem;
+  color: var(--gold);
+  letter-spacing: 0.7em;
+  margin-bottom: 0.6rem;
+  display: block;
+}
+.mast-title {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+}
+.mast-rule {
+  width: 60%;
+  height: 1px;
+  background: rgba(255,215,0,0.4);
+  margin: 0.7rem auto;
+}
+.mast-subtitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+.mast-date {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.65);
+  margin-top: 0.4rem;
+  letter-spacing: 0.05em;
+}
+
+/* ── Layout ───────────────────────────────────────────────────── */
+main { max-width: 840px; margin: 0 auto; padding: 2rem; }
+
+/* ── Section divider ──────────────────────────────────────────── */
+.divider {
+  position: relative;
+  height: 2px;
+  background: var(--red);
+  margin: 2rem 0;
+}
+.divider::after {
+  content: '★';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg);
+  color: var(--red);
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+/* ── Section titles ───────────────────────────────────────────── */
+.section-title {
+  display: inline-block;
+  background: var(--red);
+  color: var(--gold);
+  padding: 0.25rem 1rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--text);
-  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin-bottom: 1.1rem;
 }
-.header-text p { color: var(--muted); font-size: 0.9rem; margin-top: 0.15rem; }
-.lotus-svg { flex-shrink: 0; }
+.section-title::before { content: '★  '; }
+.section-title::after  { content: '  ★'; }
 
-main { max-width: 860px; margin: 0 auto; padding: 2rem; }
-
-.divider { margin: 2rem 0; opacity: 0.35; }
-
+/* ── Stats strip ──────────────────────────────────────────────── */
 .stats-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  gap: 1px;
+  background: var(--border);
+  border: 2px solid var(--border);
   margin-bottom: 0.5rem;
 }
 .stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem 1.2rem;
+  background: var(--paper);
+  padding: 1rem 1.1rem;
+  text-align: center;
 }
-.stat-value { font-size: 1.8rem; font-weight: 700; color: var(--gold); line-height: 1.1; }
+.stat-value {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--red);
+  line-height: 1;
+}
 .stat-label {
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-top: 0.3rem;
+  letter-spacing: 0.08em;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
 }
 
-.section-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--gold);
-  margin-bottom: 1rem;
+/* ── No practice ──────────────────────────────────────────────── */
+.no-practice {
+  color: var(--muted);
+  font-style: italic;
+  padding: 0.5rem 0;
+  border-left: 3px solid var(--border);
+  padding-left: 0.8rem;
 }
 
-.no-practice { color: var(--muted); font-style: italic; padding: 0.5rem 0; }
-
+/* ── Session cards ────────────────────────────────────────────── */
 .session-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1.1rem 1.3rem;
+  background: var(--paper);
+  border: 1px solid #C8B898;
+  border-left: 5px solid var(--red);
+  padding: 1rem 1.2rem;
   margin-bottom: 0.8rem;
 }
 .session-header {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.6rem;
   margin-bottom: 0.5rem;
   flex-wrap: wrap;
 }
 .badge {
   display: inline-block;
-  padding: 0.18rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  border-radius: 0;
 }
-.badge-quiz         { background: #1a3a5c; color: #6ab0f5; }
-.badge-exercise     { background: #1a3a2a; color: #6ad4a0; }
-.badge-conversation { background: #3a2a1a; color: #f5b86a; }
-.badge-lookup       { background: #2a1a3a; color: #c08af5; }
+.badge-quiz         { background: var(--red);      color: var(--gold); }
+.badge-exercise     { background: var(--red-dark); color: var(--gold); }
+.badge-conversation { background: #5C3520;         color: #FFCC88; }
+.badge-lookup       { background: #2A1A08;         color: #F5D890; }
 .session-topic { color: var(--muted); font-size: 0.88rem; }
-.score { margin-left: auto; font-size: 1rem; font-weight: 600; color: var(--jade); }
+.score {
+  margin-left: auto;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--red-dark);
+  font-variant-numeric: tabular-nums;
+}
 
+/* ── Vocab section ────────────────────────────────────────────── */
 .vocab-section { margin-top: 0.8rem; }
-.vocab-item { margin-bottom: 0.9rem; }
+.vocab-item { margin-bottom: 0.9rem; padding-left: 0.2rem; }
 .vocab-tag {
   display: inline-block;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.18rem 0.55rem;
+  background: var(--red);
+  color: var(--gold);
+  padding: 0.15rem 0.55rem;
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 0.3rem;
-  color: var(--text);
 }
 .vocab-english { color: var(--muted); font-size: 0.8rem; }
-.sample-vi { font-size: 0.88rem; color: var(--text); margin: 0.15rem 0 0 0.1rem; }
-.sample-en { font-size: 0.8rem; color: var(--muted); font-style: italic; margin: 0 0 0 0.1rem; }
+.sample-vi {
+  font-size: 0.88rem;
+  color: var(--text);
+  margin: 0.15rem 0 0 0.2rem;
+  font-style: italic;
+}
+.sample-en {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0 0 0 0.2rem;
+}
 
+/* ── Heatmap ──────────────────────────────────────────────────── */
 .heatmap-wrap { overflow-x: auto; padding-bottom: 0.5rem; }
 .heatmap-months { display: flex; margin-bottom: 4px; padding-left: 1px; }
 .hm-month { font-size: 0.7rem; color: var(--muted); width: 16px; text-align: left; flex-shrink: 0; }
@@ -158,7 +243,7 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem; }
   grid-auto-columns: 13px;
   gap: 3px;
 }
-.hm-cell { width: 13px; height: 13px; border-radius: 2px; background: var(--heat-0); }
+.hm-cell { width: 13px; height: 13px; border-radius: 1px; background: var(--heat-0); }
 .hm-cell.level-1 { background: var(--heat-1); }
 .hm-cell.level-2 { background: var(--heat-2); }
 .hm-cell.level-3 { background: var(--heat-3); }
@@ -171,17 +256,18 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem; }
   font-size: 0.72rem;
   color: var(--muted);
 }
-.legend-cell { width: 11px; height: 11px; border-radius: 2px; }
+.legend-cell { width: 11px; height: 11px; border-radius: 1px; }
 
+/* ── History ──────────────────────────────────────────────────── */
 .day-details {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin-bottom: 0.6rem;
-  background: var(--surface);
+  border: 1px solid #C8B898;
+  border-left: 4px solid var(--red);
+  margin-bottom: 0.5rem;
+  background: var(--paper);
 }
 .day-summary {
   cursor: pointer;
-  padding: 0.75rem 1rem;
+  padding: 0.7rem 1rem;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -190,30 +276,35 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem; }
 }
 .day-summary::-webkit-details-marker { display: none; }
 .day-summary::before {
-  content: '›';
-  color: var(--gold);
-  font-size: 1rem;
-  transition: transform 0.15s;
+  content: '▶';
+  color: var(--red);
+  font-size: 0.6rem;
   display: inline-block;
   width: 0.8rem;
+  flex-shrink: 0;
 }
-details[open] .day-summary::before { transform: rotate(90deg); }
-.day-date { font-weight: 500; }
-.day-meta { font-size: 0.82rem; color: var(--muted); margin-left: auto; }
+details[open] .day-summary::before { content: '▼'; }
+.day-date { font-weight: 600; font-size: 0.9rem; }
+.day-meta { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
 .day-cards { padding: 0 0.8rem 0.8rem; }
 
+/* ── Footer ───────────────────────────────────────────────────── */
 footer {
   text-align: center;
-  padding: 2rem;
+  padding: 1.5rem 2rem;
   color: var(--muted);
   font-size: 0.78rem;
-  border-top: 1px solid var(--border);
+  background: var(--red);
+  color: rgba(255,255,255,0.7);
   margin-top: 3rem;
+  letter-spacing: 0.05em;
 }
+footer a { color: var(--gold); }
 
 @media (max-width: 600px) {
   .stats-strip { grid-template-columns: repeat(2, 1fr); }
   main { padding: 1rem; }
+  .mast-title { font-size: 2rem; }
 }
 """
 
@@ -411,15 +502,16 @@ class VietnameseDashboardSkill:
             '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
             "<title>Học Tiếng Việt</title>\n"
             '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
-            '<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">\n'
+            '<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,900;1,400;1,500&display=swap" rel="stylesheet">\n'
             f"<style>{_CSS}</style>\n"
             "</head>\n"
             "<body>\n"
             "<header>\n"
-            + _LOTUS_SVG
-            + "\n"
-            f'<div class="header-text"><h1>Học Tiếng Việt</h1>'
-            f'<p>Vietnamese vocabulary progress · {html_lib.escape(today_display)}</p></div>\n'
+            '<span class="mast-stars">★ ★ ★ ★ ★</span>\n'
+            '<div class="mast-title">Học Tiếng Việt</div>\n'
+            '<div class="mast-rule"></div>\n'
+            '<div class="mast-subtitle">Nhật Ký Học Tập Từ Vựng</div>\n'
+            f'<div class="mast-date">★ {html_lib.escape(today_display)} ★</div>\n'
             "</header>\n"
             "<main>\n"
             # Stats strip
@@ -555,24 +647,7 @@ class VietnameseDashboardSkill:
 
 
 # ------------------------------------------------------------------
-# Module-level HTML fragments (defined here to keep generate_html clean)
+# Module-level HTML fragments
 # ------------------------------------------------------------------
 
-_LOTUS_SVG = (
-    '<svg class="lotus-svg" width="52" height="52" viewBox="0 0 52 52" '
-    'fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
-    '<ellipse cx="26" cy="26" rx="4.5" ry="11" fill="#F39C12" opacity="0.85"/>'
-    '<ellipse cx="26" cy="26" rx="4.5" ry="11" fill="#F39C12" opacity="0.85" transform="rotate(45 26 26)"/>'
-    '<ellipse cx="26" cy="26" rx="4.5" ry="11" fill="#F39C12" opacity="0.85" transform="rotate(90 26 26)"/>'
-    '<ellipse cx="26" cy="26" rx="4.5" ry="11" fill="#F39C12" opacity="0.85" transform="rotate(135 26 26)"/>'
-    '<circle cx="26" cy="26" r="4.5" fill="#F39C12"/>'
-    '</svg>'
-)
-
-_DIVIDER = (
-    '<div class="divider">'
-    '<svg viewBox="0 0 600 12" width="100%" xmlns="http://www.w3.org/2000/svg">'
-    '<path d="M0,6 Q150,1 300,6 Q450,11 600,6" stroke="#F39C12" fill="none" stroke-width="1.5"/>'
-    '</svg>'
-    '</div>\n'
-)
+_DIVIDER = '<div class="divider"></div>\n'
