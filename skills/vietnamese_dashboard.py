@@ -23,20 +23,19 @@ _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 # CSS defined as a plain string to avoid f-string brace-escaping in CSS rules.
 _CSS = """
 :root {
-  --bg:       #1A0808;
-  --surface:  #2A1010;
-  --surface2: #3A1818;
-  --border:   #5A2020;
-  --text:     #F5E6C8;
-  --muted:    #C4A882;
-  --accent:   #C0392B;
-  --gold:     #F39C12;
-  --jade:     #2E8B57;
-  --heat-0:   #2A1010;
-  --heat-1:   #7A2020;
-  --heat-2:   #A02828;
-  --heat-3:   #C0392B;
-  --heat-4:   #E05030;
+  --bg:         #141414;
+  --surface:    #1E1E1E;
+  --border:     #2C2C2C;
+  --text:       #EDE0CF;
+  --muted:      #9A8B7A;
+  --vermillion: #D94030;
+  --gold:       #C8A45C;
+  --jade:       #4A7C5F;
+  --heat-0:     #1E1E1E;
+  --heat-1:     #4A2318;
+  --heat-2:     #7A3A22;
+  --heat-3:     #B05030;
+  --heat-4:     #D94030;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -48,109 +47,193 @@ body {
   min-height: 100vh;
 }
 a { color: var(--gold); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
+/* ── Header ───────────────────────────────────────────────────── */
 header {
-  padding: 2rem 2rem 1.5rem;
+  background: var(--bg);
+  text-align: center;
+  padding: 3rem 1.5rem 2.5rem;
   border-bottom: 1px solid var(--border);
-  display: flex;
+}
+.header-inner {
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1.2rem;
+  gap: 1.1rem;
 }
-.header-text h1 {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: 0.02em;
+.drum-svg { display: block; }
+h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2.6rem;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  color: var(--gold);
+  margin: 0;
+  text-transform: uppercase;
 }
-.header-text p { color: var(--muted); font-size: 0.9rem; margin-top: 0.15rem; }
-.lotus-svg { flex-shrink: 0; }
+.subtitle {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  margin: 0;
+}
 
-main { max-width: 860px; margin: 0 auto; padding: 2rem; }
+/* ── Layout ───────────────────────────────────────────────────── */
+main { max-width: 840px; margin: 0 auto; padding: 2rem; }
 
-.divider { margin: 2rem 0; opacity: 0.35; }
+/* ── Section divider ──────────────────────────────────────────── */
+.divider {
+  position: relative;
+  margin: 2.5rem 0;
+  text-align: center;
+}
+.divider::before {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--gold);
+  opacity: 0.2;
+}
+.divider::after {
+  content: '\2726';
+  position: relative;
+  display: inline-block;
+  background: var(--bg);
+  padding: 0 1rem;
+  color: var(--gold);
+  opacity: 0.5;
+  font-size: 0.75rem;
+  line-height: 1;
+}
 
+/* ── Section titles ───────────────────────────────────────────── */
+.section-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(200, 164, 92, 0.15);
+}
+
+/* ── Stats strip ──────────────────────────────────────────────── */
 .stats-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
   margin-bottom: 0.5rem;
 }
 .stat-card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem 1.2rem;
+  padding: 1.2rem 1rem;
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(200, 164, 92, 0.07);
 }
-.stat-value { font-size: 1.8rem; font-weight: 700; color: var(--gold); line-height: 1.1; }
+.stat-value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: var(--gold);
+  line-height: 1;
+}
 .stat-label {
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-top: 0.3rem;
-}
-
-.section-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--gold);
-  margin-bottom: 1rem;
+  margin-top: 0.4rem;
 }
 
-.no-practice { color: var(--muted); font-style: italic; padding: 0.5rem 0; }
+/* ── No practice ──────────────────────────────────────────────── */
+.no-practice {
+  color: var(--muted);
+  font-style: italic;
+  padding: 0.5rem 0.9rem;
+  border-left: 2px solid rgba(200, 164, 92, 0.25);
+}
 
+/* ── Session cards ────────────────────────────────────────────── */
 .session-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1.1rem 1.3rem;
+  border-left: 3px solid var(--gold);
+  box-shadow: inset 0 1px 0 rgba(200, 164, 92, 0.06);
+  padding: 1rem 1.2rem;
   margin-bottom: 0.8rem;
 }
 .session-header {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.6rem;
   margin-bottom: 0.5rem;
   flex-wrap: wrap;
 }
 .badge {
   display: inline-block;
-  padding: 0.18rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
+  border-radius: 2px;
 }
-.badge-quiz         { background: #1a3a5c; color: #6ab0f5; }
-.badge-exercise     { background: #1a3a2a; color: #6ad4a0; }
-.badge-conversation { background: #3a2a1a; color: #f5b86a; }
-.badge-lookup       { background: #2a1a3a; color: #c08af5; }
+.badge-quiz         { background: var(--vermillion); color: #EDE0CF; }
+.badge-exercise     { background: transparent; color: var(--gold); border: 1px solid rgba(200,164,92,0.4); }
+.badge-conversation { background: var(--jade);       color: #D4EAD4; }
+.badge-lookup       { background: #2A2A2A; color: var(--muted); border: 1px solid var(--border); }
 .session-topic { color: var(--muted); font-size: 0.88rem; }
-.score { margin-left: auto; font-size: 1rem; font-weight: 600; color: var(--jade); }
+.score {
+  margin-left: auto;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--vermillion);
+}
 
+/* ── Vocab section ────────────────────────────────────────────── */
 .vocab-section { margin-top: 0.8rem; }
-.vocab-item { margin-bottom: 0.9rem; }
+.vocab-item { margin-bottom: 0.9rem; padding-left: 0.2rem; }
 .vocab-tag {
   display: inline-block;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.18rem 0.55rem;
-  font-size: 0.85rem;
+  background: #252525;
+  border: 1px solid rgba(200, 164, 92, 0.3);
+  color: var(--gold);
+  padding: 0.12rem 0.5rem;
+  font-size: 0.88rem;
   font-weight: 500;
+  border-radius: 2px;
   margin-bottom: 0.3rem;
-  color: var(--text);
 }
 .vocab-english { color: var(--muted); font-size: 0.8rem; }
-.sample-vi { font-size: 0.88rem; color: var(--text); margin: 0.15rem 0 0 0.1rem; }
-.sample-en { font-size: 0.8rem; color: var(--muted); font-style: italic; margin: 0 0 0 0.1rem; }
+.sample-vi {
+  font-size: 0.88rem;
+  color: var(--text);
+  margin: 0.15rem 0 0 0.2rem;
+  font-style: italic;
+}
+.sample-en {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0 0 0 0.2rem;
+}
 
+/* ── Heatmap ──────────────────────────────────────────────────── */
 .heatmap-wrap { overflow-x: auto; padding-bottom: 0.5rem; }
 .heatmap-months { display: flex; margin-bottom: 4px; padding-left: 1px; }
-.hm-month { font-size: 0.7rem; color: var(--muted); width: 16px; text-align: left; flex-shrink: 0; }
+.hm-month { font-size: 0.68rem; color: var(--muted); width: 16px; text-align: left; flex-shrink: 0; }
 .heatmap-grid {
   display: grid;
   grid-template-rows: repeat(7, 13px);
@@ -168,20 +251,21 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem; }
   align-items: center;
   gap: 4px;
   margin-top: 0.6rem;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--muted);
 }
 .legend-cell { width: 11px; height: 11px; border-radius: 2px; }
 
+/* ── History ──────────────────────────────────────────────────── */
 .day-details {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  margin-bottom: 0.6rem;
+  border-left: 3px solid rgba(200, 164, 92, 0.3);
+  margin-bottom: 0.5rem;
   background: var(--surface);
 }
 .day-summary {
   cursor: pointer;
-  padding: 0.75rem 1rem;
+  padding: 0.7rem 1rem;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -190,30 +274,36 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem; }
 }
 .day-summary::-webkit-details-marker { display: none; }
 .day-summary::before {
-  content: '›';
+  content: '\25B6';
   color: var(--gold);
-  font-size: 1rem;
-  transition: transform 0.15s;
+  opacity: 0.5;
+  font-size: 0.55rem;
   display: inline-block;
   width: 0.8rem;
+  flex-shrink: 0;
 }
-details[open] .day-summary::before { transform: rotate(90deg); }
-.day-date { font-weight: 500; }
-.day-meta { font-size: 0.82rem; color: var(--muted); margin-left: auto; }
+details[open] .day-summary::before { content: '\25BC'; }
+.day-date { font-weight: 500; font-size: 0.9rem; }
+.day-meta { font-size: 0.78rem; color: var(--muted); margin-left: auto; }
 .day-cards { padding: 0 0.8rem 0.8rem; }
 
+/* ── Footer ───────────────────────────────────────────────────── */
 footer {
   text-align: center;
-  padding: 2rem;
+  padding: 1.5rem 2rem;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   border-top: 1px solid var(--border);
   margin-top: 3rem;
+  letter-spacing: 0.05em;
 }
+footer a { color: var(--gold); opacity: 0.8; }
+footer a:hover { opacity: 1; }
 
 @media (max-width: 600px) {
   .stats-strip { grid-template-columns: repeat(2, 1fr); }
   main { padding: 1rem; }
+  h1 { font-size: 1.8rem; }
 }
 """
 
@@ -411,15 +501,17 @@ class VietnameseDashboardSkill:
             '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
             "<title>Học Tiếng Việt</title>\n"
             '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
-            '<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">\n'
+            '<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Be+Vietnam+Pro:wght@300;400;500&display=swap" rel="stylesheet">\n'
             f"<style>{_CSS}</style>\n"
             "</head>\n"
             "<body>\n"
             "<header>\n"
-            + _LOTUS_SVG
+            '<div class="header-inner">\n'
+            + _DRUM_SVG
             + "\n"
-            f'<div class="header-text"><h1>Học Tiếng Việt</h1>'
-            f'<p>Vietnamese vocabulary progress · {html_lib.escape(today_display)}</p></div>\n'
+            '<h1>HỌC TIẾNG VIỆT</h1>\n'
+            '<p class="subtitle">nhật ký luyện tập</p>\n'
+            '</div>\n'
             "</header>\n"
             "<main>\n"
             # Stats strip
@@ -558,21 +650,27 @@ class VietnameseDashboardSkill:
 # Module-level HTML fragments (defined here to keep generate_html clean)
 # ------------------------------------------------------------------
 
-_LOTUS_SVG = (
-    '<svg class="lotus-svg" width="52" height="52" viewBox="0 0 52 52" '
+_DRUM_SVG = (
+    '<svg class="drum-svg" width="72" height="72" viewBox="-36 -36 72 72" '
     'fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
-    '<ellipse cx="26" cy="26" rx="4.5" ry="11" fill="#F39C12" opacity="0.85"/>'
-    '<ellipse cx="26" cy="26" rx="4.5" ry="11" fill="#F39C12" opacity="0.85" transform="rotate(45 26 26)"/>'
-    '<ellipse cx="26" cy="26" rx="4.5" ry="11" fill="#F39C12" opacity="0.85" transform="rotate(90 26 26)"/>'
-    '<ellipse cx="26" cy="26" rx="4.5" ry="11" fill="#F39C12" opacity="0.85" transform="rotate(135 26 26)"/>'
-    '<circle cx="26" cy="26" r="4.5" fill="#F39C12"/>'
+    '<circle r="34" stroke="#C8A45C" stroke-width="1.5" opacity="0.6"/>'
+    '<circle r="26" stroke="#C8A45C" stroke-width="1" opacity="0.4"/>'
+    '<circle r="18" stroke="#C8A45C" stroke-width="1" opacity="0.4"/>'
+    '<circle r="10" stroke="#C8A45C" stroke-width="1.5" opacity="0.6"/>'
+    '<circle r="3" fill="#C8A45C" opacity="0.8"/>'
+    '<line x1="0" y1="-10" x2="0" y2="-34" stroke="#C8A45C" stroke-width="0.8" opacity="0.5"/>'
+    '<line x1="0" y1="10" x2="0" y2="34" stroke="#C8A45C" stroke-width="0.8" opacity="0.5"/>'
+    '<line x1="-10" y1="0" x2="-34" y2="0" stroke="#C8A45C" stroke-width="0.8" opacity="0.5"/>'
+    '<line x1="10" y1="0" x2="34" y2="0" stroke="#C8A45C" stroke-width="0.8" opacity="0.5"/>'
+    '<line x1="-7.07" y1="-7.07" x2="-24.04" y2="-24.04" stroke="#C8A45C" stroke-width="0.8" opacity="0.5"/>'
+    '<line x1="7.07" y1="-7.07" x2="24.04" y2="-24.04" stroke="#C8A45C" stroke-width="0.8" opacity="0.5"/>'
+    '<line x1="-7.07" y1="7.07" x2="-24.04" y2="24.04" stroke="#C8A45C" stroke-width="0.8" opacity="0.5"/>'
+    '<line x1="7.07" y1="7.07" x2="24.04" y2="24.04" stroke="#C8A45C" stroke-width="0.8" opacity="0.5"/>'
+    '<line x1="-5" y1="-8.66" x2="-17" y2="-29.44" stroke="#C8A45C" stroke-width="0.8" opacity="0.35"/>'
+    '<line x1="5" y1="-8.66" x2="17" y2="-29.44" stroke="#C8A45C" stroke-width="0.8" opacity="0.35"/>'
+    '<line x1="-5" y1="8.66" x2="-17" y2="29.44" stroke="#C8A45C" stroke-width="0.8" opacity="0.35"/>'
+    '<line x1="5" y1="8.66" x2="17" y2="29.44" stroke="#C8A45C" stroke-width="0.8" opacity="0.35"/>'
     '</svg>'
 )
 
-_DIVIDER = (
-    '<div class="divider">'
-    '<svg viewBox="0 0 600 12" width="100%" xmlns="http://www.w3.org/2000/svg">'
-    '<path d="M0,6 Q150,1 300,6 Q450,11 600,6" stroke="#F39C12" fill="none" stroke-width="1.5"/>'
-    '</svg>'
-    '</div>\n'
-)
+_DIVIDER = '<div class="divider"></div>\n'
