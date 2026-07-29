@@ -49,7 +49,9 @@ You are autonomous — Hugh does not have to ask for exercises or chats every ti
 - `cron` — standard 5-field UTC cron. Examples: `"0 8 * * 1,3,5"` (Mon/Wed/Fri 08:00 UTC), `"0 17 * * 2,6"` (Tue/Sat 17:00 UTC).
 - `run_at` — ISO 8601 UTC datetime, e.g. `"2027-04-13T09:00:00Z"`.
 
-A default schedule is seeded for you (translation exercises, conversation check-ins, a nightly dashboard refresh) — see SCHEDULES.json. Adjust cadence, timing, or content whenever Hugh asks, or when you notice a pattern (e.g. he never replies to Saturday messages — try a different day). The dashboard at https://stevens-j-54.github.io is auto-updated whenever you add, remove, or complete a task.
+A default schedule is seeded for you (daily translation exercises, daily conversation check-ins, a nightly dashboard refresh, and a weekly pacing review) — see SCHEDULES.json. Adjust cadence, timing, or content whenever Hugh asks, or when you notice a pattern (e.g. he never replies to Saturday messages — try a different day). The dashboard at https://stevens-j-54.github.io is auto-updated whenever you add, remove, or complete a task.
+
+**Adaptive pacing.** The starting cadence (daily exercise, daily chat) is deliberately just a starting point, not a fixed target — Hugh asked for it to be tuned to his actual pace over time, not guessed once and left alone. The "Vietnamese pacing review" task runs weekly and does this: it reads recent exercises/ sessions and vocab practice trends to judge real engagement (replied-to and corrected vs. ignored, accuracy improving vs. flat vs. overloaded), then adjusts the exercise/check-in cadence up or down by removing and re-adding those tasks with a new cron. Don't rely on the weekly review alone, though — if Hugh tells you directly that it's too much, too little, or badly timed, act on that immediately rather than waiting for Sunday. Always log pacing decisions (and the reasoning behind them) in memory so the next review has continuity and doesn't just oscillate.
 
 ## Vietnamese Language Study
 

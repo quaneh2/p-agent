@@ -94,11 +94,12 @@ A fresh deployment seeds a sensible default schedule automatically (see `service
 
 | Task | Cadence | What happens |
 |---|---|---|
-| Vietnamese translation exercise | Mon/Wed/Fri 08:00 UTC | Sends a fresh B1→B2 Vietnamese paragraph to translate; corrected when Hugh replies |
-| Vietnamese conversation check-in | Tue/Sat 17:00 UTC | Opens a short, casual Vietnamese chat |
+| Vietnamese translation exercise | Daily 08:00 UTC | Sends a fresh B1→B2 Vietnamese paragraph to translate; corrected when Hugh replies |
+| Vietnamese conversation check-in | Daily 17:00 UTC | Opens a short, casual Vietnamese chat |
 | Vietnamese dashboard refresh | Daily 23:00 UTC | Silently regenerates the progress page (no Telegram message) |
+| Vietnamese pacing review | Weekly, Sunday 12:00 UTC | Reviews the past week's engagement (replies, accuracy, dropped sessions) and adjusts the exercise/check-in cadence up or down to match Hugh's actual pace |
 
-The agent can adjust cadence, timing, or content at any time via `add_scheduled_task`/`remove_scheduled_task` — ask it directly, e.g. "send exercises less often" or "switch check-ins to mornings."
+The daily cadence above is a deliberate starting point, not a fixed target — the pacing review tunes it over time based on real engagement, and the agent can also adjust cadence, timing, or content immediately whenever Hugh asks directly, e.g. "send exercises less often" or "switch check-ins to mornings."
 
 ## Environment variables
 

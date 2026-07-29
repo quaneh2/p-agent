@@ -10,7 +10,7 @@ telegram_sessions.json). Two task types are supported:
 Two instruction types are supported:
 
   skill            — calls a registered Python skill directly (no Claude API call)
-  natural_language — runs a text instruction through Claude with a lean prompt
+  natural_language — runs a text instruction through Claude with the full system prompt
 """
 
 import json
@@ -31,7 +31,7 @@ DEFAULT_TASKS = [
     {
         "name": "Vietnamese translation exercise",
         "type": "recurring",
-        "cron": "0 8 * * 1,3,5",  # Mon/Wed/Fri 08:00 UTC
+        "cron": "0 8 * * *",  # daily 08:00 UTC — starting cadence; tuned over time, see pacing review below
         "instruction_type": "natural_language",
         "instruction": (
             "Run a Vietnamese translation exercise for Hugh (B1 working towards B2). "
@@ -44,7 +44,7 @@ DEFAULT_TASKS = [
     {
         "name": "Vietnamese conversation check-in",
         "type": "recurring",
-        "cron": "0 17 * * 2,6",  # Tue/Sat 17:00 UTC
+        "cron": "0 17 * * *",  # daily 17:00 UTC — starting cadence; tuned over time, see pacing review below
         "instruction_type": "natural_language",
         "instruction": (
             "Start a casual Vietnamese conversation practice session with Hugh. "
@@ -59,6 +59,30 @@ DEFAULT_TASKS = [
         "cron": "0 23 * * *",  # daily 23:00 UTC
         "instruction_type": "skill",
         "instruction": "update_vietnamese_dashboard",
+    },
+    {
+        "name": "Vietnamese pacing review",
+        "type": "recurring",
+        "cron": "0 12 * * 0",  # weekly, Sunday 12:00 UTC
+        "instruction_type": "natural_language",
+        "instruction": (
+            "Weekly self-tuning review — recurring, not a one-off. Call list_scheduled_tasks "
+            "to see the current cron for the 'Vietnamese translation exercise' and "
+            "'Vietnamese conversation check-in' tasks. Then judge the last 7-14 days of "
+            "engagement: list_agent_core and read_agent_core recent files under exercises/, "
+            "plus vietnamese_vocab.json practice_count/last_practiced trends. Were exercises "
+            "and chats actually replied to and corrected, or left unanswered? Is accuracy "
+            "improving, flat, or is Hugh clearly overloaded (skipped sessions, short or "
+            "frustrated replies, the same mistakes repeating)? "
+            "If engagement and accuracy are strong, hold steady or nudge frequency up "
+            "slightly. If sessions are going unanswered or accuracy is dropping, scale "
+            "back. To change either task's cadence: remove_scheduled_task the old one, "
+            "then add_scheduled_task a replacement with the same name and instruction "
+            "but an adjusted cron. Record what you observed and changed (or chose not to "
+            "change) via update_memory so future reviews have context and don't thrash "
+            "the schedule back and forth. Reply to Hugh with one or two honest sentences: "
+            "what you noticed, and what (if anything) you changed."
+        ),
     },
 ]
 
