@@ -1,9 +1,5 @@
-credentials.json
-token.json
-
 .env
 agent-core/
-workspace/
 
 # Python
 __pycache__/
@@ -14,6 +10,8 @@ __pycache__/
 venv/
 env/
 .venv/
+build/
+*.egg-info/
 
 # IDE
 .vscode/

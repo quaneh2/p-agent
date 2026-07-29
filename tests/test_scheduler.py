@@ -3,7 +3,7 @@ Unit tests for SchedulerService.
 
 Uses a lightweight mock for agent_core so no git operations are performed.
 SchedulerService is loaded directly from its module file to avoid triggering
-services/__init__.py, which imports EmailService (and therefore google-auth).
+services/__init__.py, which imports PyGithub-backed modules.
 """
 
 import importlib.util
@@ -22,19 +22,26 @@ _mod = importlib.util.module_from_spec(_spec)
 sys.modules["services.scheduler"] = _mod
 _spec.loader.exec_module(_mod)
 SchedulerService = _mod.SchedulerService
+DEFAULT_TASKS = _mod.DEFAULT_TASKS
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-_FAKE_SKILLS = {"run_hn_digest": object()}  # minimal stub — only the key matters for validation
+# Minimal stub — only the key matters for skill-task validation.
+_FAKE_SKILLS = {"update_vietnamese_dashboard": object()}
 
 
 def _make_scheduler(tasks=None):
-    """Return a SchedulerService with a mocked agent_core."""
+    """
+    Return a SchedulerService with a mocked agent_core.
+
+    Pass tasks=[] (not the default None) to get a genuinely empty, unseeded
+    schedule — None simulates a missing SCHEDULES.json, which triggers
+    default-task seeding, same as a fresh deploy.
+    """
     agent_core = MagicMock()
-    # read_file returns an empty schedule by default
     if tasks is None:
         agent_core.read_file.return_value = {"success": False, "error": "not found"}
     else:
@@ -57,6 +64,25 @@ def _future_dt(seconds=3600):
 
 
 # ---------------------------------------------------------------------------
+# Seeding
+# ---------------------------------------------------------------------------
+
+def test_missing_schedule_seeds_defaults():
+    sched = _make_scheduler()  # tasks=None -> simulates missing SCHEDULES.json
+    tasks = sched.list_tasks()
+    assert len(tasks) == len(DEFAULT_TASKS)
+    assert {t["name"] for t in tasks} == {t["name"] for t in DEFAULT_TASKS}
+    for t in tasks:
+        assert t["next_run"] is not None
+        assert t["status"] == "active"
+
+
+def test_existing_schedule_is_not_reseeded():
+    sched = _make_scheduler(tasks=[])
+    assert sched.list_tasks() == []
+
+
+# ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 
@@ -67,7 +93,7 @@ def test_get_due_tasks_returns_overdue():
         "type": "recurring",
         "cron": "* * * * *",
         "run_at": None,
-        "instruction": "run_hn_digest",
+        "instruction": "update_vietnamese_dashboard",
         "instruction_type": "skill",
         "next_run": _past_dt(120),
         "last_run": None,
@@ -125,7 +151,7 @@ def test_mark_complete_recurring_advances_next_run():
         "type": "recurring",
         "cron": "0 9 * * *",
         "run_at": None,
-        "instruction": "run_hn_digest",
+        "instruction": "update_vietnamese_dashboard",
         "instruction_type": "skill",
         "next_run": _past_dt(60),
         "last_run": None,
@@ -169,12 +195,12 @@ def test_mark_complete_one_time_sets_completed():
 
 
 def test_add_task_assigns_id_and_next_run():
-    sched = _make_scheduler()
+    sched = _make_scheduler(tasks=[])
     result = sched.add_task({
         "name": "Daily digest",
         "type": "recurring",
         "cron": "0 9 * * 1-5",
-        "instruction": "run_hn_digest",
+        "instruction": "update_vietnamese_dashboard",
         "instruction_type": "skill",
     })
     assert result["success"] is True
@@ -187,7 +213,7 @@ def test_add_task_assigns_id_and_next_run():
 
 
 def test_add_task_one_time_requires_run_at():
-    sched = _make_scheduler()
+    sched = _make_scheduler(tasks=[])
     result = sched.add_task({
         "name": "Missing run_at",
         "type": "one_time",
@@ -200,11 +226,11 @@ def test_add_task_one_time_requires_run_at():
 
 
 def test_add_task_recurring_requires_cron():
-    sched = _make_scheduler()
+    sched = _make_scheduler(tasks=[])
     result = sched.add_task({
         "name": "Missing cron",
         "type": "recurring",
-        "instruction": "run_hn_digest",
+        "instruction": "update_vietnamese_dashboard",
         "instruction_type": "skill",
         # cron intentionally omitted
     })
@@ -234,7 +260,7 @@ def test_remove_task():
 
 
 def test_remove_task_not_found():
-    sched = _make_scheduler()
+    sched = _make_scheduler(tasks=[])
     result = sched.remove_task("nonexistent-id")
     assert result["success"] is False
     assert "No task found" in result["error"]

@@ -1,30 +1,30 @@
 """
-Autonomous Email Agent
+Vietnamese Learning Agent
 ==========================================
-A simple agent that polls its Gmail inbox and Telegram for messages and replies.
+An always-on agent that helps Hugh study Vietnamese (B1 → B2) over Telegram:
+proactive translation exercises, conversation practice, vocab quizzes, and
+structured vocabulary tracking.
 """
 
-import os
 import json
 import logging
-import argparse
+import os
 import time
 
 import anthropic
 
 from config import (
     POLL_INTERVAL_SECONDS,
-    AUTHORIZED_SENDERS,
     CLAUDE_MODEL,
     TELEGRAM_BOT_TOKEN,
     TELEGRAM_AUTHORIZED_IDS,
     AGENT_CORE_DIR,
 )
-from prompts import load_system_prompt, load_lean_system_prompt, EMAIL_RECEIVED_TEMPLATE, TELEGRAM_MESSAGE_TEMPLATE
+from prompts import load_system_prompt, TELEGRAM_MESSAGE_TEMPLATE
 from tools import TOOLS, handle_tool_call
-from services import Workspace, EmailService, AgentCore, GitHubService, TelegramService, FetchService, SchedulerService
-from skills import HNDigestSkill, DashboardSkill, VietnameseStudySkill, VietnameseVocabSkill, VietnameseDashboardSkill
-from utils import build_messages, is_authorized_email_sender, is_authorized_telegram_user
+from services import AgentCore, TelegramService, FetchService, SchedulerService
+from skills import DashboardSkill, VietnameseStudySkill, VietnameseVocabSkill, VietnameseDashboardSkill
+from utils import is_authorized_telegram_user
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,15 +49,12 @@ ANTHROPIC_BACKOFF_MAX_SECONDS = 60.0
 
 
 
-class EmailAgent:
+class Agent:
     def __init__(self):
-        self.email_service = None
         self.telegram_service = None
         self.claude = None
-        self._workspaces: dict[str, Workspace] = {}
         self._telegram_sessions: dict[int, list] = {}
         self.agent_core = None
-        self.github_service = None
         self.fetch_service = FetchService()
         self._anthropic_next_allowed_ts = 0.0
         self._anthropic_last_call_ts = 0.0
@@ -65,32 +62,15 @@ class EmailAgent:
         self.scheduler: SchedulerService | None = None
         self.dashboard_skill: DashboardSkill | None = None
 
-    def get_workspace(self, repo_name: str = "workspace") -> Workspace:
-        """Get (or lazily initialise) a workspace for the given repo name."""
-        if repo_name not in self._workspaces:
-            logger.info("Initialising workspace: %s", repo_name)
-            ws = Workspace(repo_name)
-            ws.init()
-            self._workspaces[repo_name] = ws
-        return self._workspaces[repo_name]
-
     @property
     def services(self):
         return {
-            "get_workspace": self.get_workspace,
-            "github": self.github_service,
             "agent_core": self.agent_core,
             "fetch": self.fetch_service,
             "skills": self._skills,
             "scheduler": self.scheduler,
             "dashboard": self.dashboard_skill,
         }
-
-    def init_email(self):
-        """Initialize email service."""
-        self.email_service = EmailService()
-        self.email_service.authenticate()
-        return self
 
     def init_claude(self):
         """Initialize Claude client."""
@@ -196,17 +176,6 @@ class EmailAgent:
                 if attempt > ANTHROPIC_MAX_RETRIES:
                     raise
 
-    def init_workspace(self):
-        """Initialize the default workspace."""
-        self.get_workspace("workspace")
-        return self
-
-    def init_github(self):
-        """Initialize the GitHub service."""
-        self.github_service = GitHubService()
-        logger.info("GitHub service initialised")
-        return self
-
     def init_agent_core(self):
         """Initialize the agent-core configuration repo."""
         self.agent_core = AgentCore()
@@ -215,9 +184,6 @@ class EmailAgent:
 
     def init_skills(self):
         """Initialize skills, wiring in required services."""
-        self._skills["hn_digest"] = HNDigestSkill(
-            fetch_service=self.fetch_service,
-        )
         self._skills["vietnamese_study"] = VietnameseStudySkill(
             fetch_service=self.fetch_service,
         )
@@ -231,7 +197,7 @@ class EmailAgent:
         return self
 
     def init_scheduler(self):
-        """Initialize the task scheduler, loading persisted tasks from agent-core."""
+        """Initialize the task scheduler, loading (or seeding) persisted tasks from agent-core."""
         self.scheduler = SchedulerService(self.agent_core, self._skills)
         self.scheduler.load_tasks()
         logger.info("Scheduler initialised with %d task(s)", len(self.scheduler.list_tasks()))
@@ -240,7 +206,6 @@ class EmailAgent:
     def init_dashboard(self):
         """Initialize the dashboard skill (does not clone repo yet — lazy on first update)."""
         self.dashboard_skill = DashboardSkill(
-            github_service=self.github_service,
             agent_core=self.agent_core,
         )
         logger.info("Dashboard skill initialised")
@@ -250,7 +215,7 @@ class EmailAgent:
         """
         Execute a scheduled task.
         - skill tasks: call the Python skill directly (no Claude API call)
-        - natural_language tasks: call Claude with a lean system prompt
+        - natural_language tasks: call Claude with the full system prompt
         """
         if task["instruction_type"] == "skill":
             skill = self._skills.get(task["instruction"])
@@ -259,41 +224,9 @@ class EmailAgent:
             result = skill.run()
             return json.dumps(result)
         else:
-            system_prompt = self._build_scheduled_task_prompt()
+            system_prompt = load_system_prompt()
             messages = [{"role": "user", "content": task["instruction"]}]
             return self._run_claude(messages, system_prompt)
-
-    def _build_scheduled_task_prompt(self) -> str:
-        """
-        Lean system prompt for scheduled natural-language tasks.
-        Includes identity + memory only — no workspace/codebase context.
-        This keeps credit usage low for simple recurring instructions.
-        """
-        return load_lean_system_prompt()
-
-    def sync_codebase(self):
-        """
-        Sync fork main with upstream and clean up merged branches.
-        Also pulls the local p-agent workspace if already initialised so it
-        stays in sync with the freshly-updated fork.
-        """
-        logger.info("Syncing fork with upstream...")
-        result = self.github_service.sync_fork_with_upstream()
-        if result.get("success"):
-            logger.info("Fork sync: %s", result["message"])
-        else:
-            logger.warning("Fork sync failed (non-fatal): %s", result.get("error"))
-
-        result = self.github_service.cleanup_merged_branches()
-        if result.get("success"):
-            deleted = result.get("deleted", [])
-            if deleted:
-                logger.info("Deleted merged branches: %s", ", ".join(deleted))
-        else:
-            logger.warning("Branch cleanup failed (non-fatal): %s", result.get("error"))
-
-        if "p-agent" in self._workspaces:
-            self._workspaces["p-agent"].pull_latest()
 
     def init_telegram(self):
         """Initialize Telegram service if a bot token is configured."""
@@ -331,8 +264,8 @@ class EmailAgent:
 
     def _run_claude(self, messages: list, system_prompt: str) -> str:
         """
-        Core Claude tool-use loop shared by all channels.
-        Runs until Claude stops requesting tools, then returns the final text response.
+        Core Claude tool-use loop. Runs until Claude stops requesting tools,
+        then returns the final text response.
         """
         messages = list(messages)  # own the defensive copy; callers' lists are not mutated
         try:
@@ -374,29 +307,13 @@ class EmailAgent:
             logger.error("Claude API error: %s", e)
             return f"Something went wrong on my end. Please try again.\n\n(Error: {str(e)[:100]})"
 
-    def process_email(self, email):
-        """Process an email using Claude with tool support."""
-        self.agent_core.pull_latest()
-        system_prompt = load_system_prompt()
-
-        user_message = EMAIL_RECEIVED_TEMPLATE.format(
-            sender=email['sender'],
-            subject=email['subject'],
-            body=email['body']
-        )
-
-        thread_history = self.email_service.get_thread_context(
-            email['thread_id'], email['id']
-        )
-        messages = build_messages(thread_history, user_message)
-        return self._run_claude(messages, system_prompt)
-
     def process_telegram_update(self, update: dict) -> str:
         """
         Process a Telegram message using Claude with tool support.
 
         Maintains an in-memory conversation history per chat ID so the agent
-        has multi-turn context within a session. History resets on restart.
+        has multi-turn context within a session. History resets on restart
+        (but is also persisted to agent-core, so a redeploy recovers it).
         """
         message = update['message']
         chat_id = message['chat']['id']
@@ -422,71 +339,50 @@ class EmailAgent:
         response = self._run_claude(history, system_prompt)
 
         history.append({"role": "assistant", "content": response})
+        self._trim_and_save_session(chat_id)
+        return response
 
-        # Trim session to keep the context window manageable
+    def _record_scheduled_message(self, chat_id: int, task: dict, response: str):
+        """
+        Append a scheduled task's outgoing message to the chat's session history,
+        so that a follow-up reply (e.g. a translation) has the exercise in context.
+        A synthetic user turn keeps role alternation valid.
+        """
+        history = self._telegram_sessions.setdefault(chat_id, [])
+        history.append({
+            "role": "user",
+            "content": f"(scheduled task: {task['name']}) {task['instruction']}",
+        })
+        history.append({"role": "assistant", "content": response})
+        self._trim_and_save_session(chat_id)
+
+    def _trim_and_save_session(self, chat_id: int):
+        history = self._telegram_sessions.get(chat_id, [])
         if len(history) > MAX_TELEGRAM_HISTORY:
             self._telegram_sessions[chat_id] = history[-MAX_TELEGRAM_HISTORY:]
-
         self._save_telegram_sessions()
-        return response
 
 
 def run_agent():
     """Main agent loop."""
     logger.info("=" * 50)
-    logger.info("AI Agent starting up")
+    logger.info("Vietnamese Learning Agent starting up")
     logger.info("=" * 50)
 
-    agent = EmailAgent()
-    agent.init_email()
+    agent = Agent()
     agent.init_claude()
-    agent.init_github()
-    agent.init_workspace()
     agent.init_agent_core()
     agent.init_dashboard()
     agent.init_skills()
     agent.init_scheduler()
     agent.init_telegram()
-    agent.sync_codebase()
 
-    logger.info("Polling interval: %ss | Authorized senders: %s",
-                POLL_INTERVAL_SECONDS, AUTHORIZED_SENDERS or "ALL (not configured)")
+    logger.info("Polling interval: %ss | Authorized Telegram users: %s",
+                POLL_INTERVAL_SECONDS, TELEGRAM_AUTHORIZED_IDS or "NONE (not configured)")
     logger.info("Agent is running")
 
     while True:
         try:
-            # --- Email ---
-            logger.debug("Checking for new emails...")
-            emails = agent.email_service.get_unread_emails()
-
-            if emails:
-                logger.info("Found %d unread email(s)", len(emails))
-
-                for msg in emails:
-                    email = agent.email_service.get_email_details(msg['id'])
-
-                    if not email:
-                        continue
-
-                    logger.info("Email from: %s | Subject: %s", email['sender'], email['subject'])
-
-                    if not is_authorized_email_sender(email['sender']):
-                        logger.warning("Skipping unauthorized sender: %s", email['sender'])
-                        agent.email_service.mark_as_read(email['id'])
-                        continue
-
-                    logger.info("Processing email with Claude...")
-                    response = agent.process_email(email)
-
-                    logger.info("Sending email reply...")
-                    sent = agent.email_service.send_reply(email, response)
-
-                    if sent:
-                        agent.email_service.mark_as_read(email['id'])
-                        logger.info("Email done")
-                    else:
-                        logger.error("Email reply failed — left unread for retry")
-
             # --- Telegram ---
             if agent.telegram_service:
                 logger.debug("Checking for Telegram messages...")
@@ -526,12 +422,18 @@ def run_agent():
                         result = agent.execute_scheduled_task(task)
                         agent.scheduler.mark_task_complete(task["id"])
                         completed_any = True
-                        if TELEGRAM_AUTHORIZED_IDS and agent.telegram_service:
+                        # Only natural-language tasks are meant to reach Hugh directly —
+                        # skill tasks (e.g. dashboard refresh) run silently in the background.
+                        if (
+                            task["instruction_type"] == "natural_language"
+                            and TELEGRAM_AUTHORIZED_IDS
+                            and agent.telegram_service
+                        ):
                             # For direct (private) Telegram chats, chat_id == user_id,
                             # so the first authorized ID doubles as the notification target.
                             owner_chat_id = TELEGRAM_AUTHORIZED_IDS[0]
-                            msg = f"Scheduled task complete: {task['name']}\n\n{result}"
-                            agent.telegram_service.send_message(owner_chat_id, msg)
+                            agent.telegram_service.send_message(owner_chat_id, result)
+                            agent._record_scheduled_message(owner_chat_id, task, result)
                         logger.info("Scheduled task done: %s", task["name"])
                     except Exception as task_err:
                         logger.error(
@@ -553,17 +455,7 @@ def run_agent():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='AI Email Agent')
-    parser.add_argument('--auth', action='store_true', help='Run authentication flow only')
-    args = parser.parse_args()
-
-    if args.auth:
-        logger.info("Running authentication flow...")
-        email_service = EmailService()
-        email_service.authenticate(force_new=True)
-        logger.info("Authentication complete — token.json ready for deployment")
-    else:
-        run_agent()
+    run_agent()
 
 
 if __name__ == '__main__':
