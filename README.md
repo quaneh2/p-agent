@@ -98,7 +98,9 @@ These are loaded and composed into the system prompt on every message — live T
 **Self-configuration**
 - `list_agent_core`, `read_agent_core` — inspect configuration/data files
 - `create_agent_core`, `update_agent_core` — modify identity, soul, or other config files
+- `delete_agent_core_file`, `delete_agent_core_folder` — permanently remove a file/folder from agent-core (e.g. clearing exercises/ history); irreversible
 - `update_memory` — update persistent memory
+- `reset_telegram_memory` — clear Telegram conversation history immediately, both the live in-memory session and the persisted file (overwriting the file alone isn't enough while the process is running — the still-populated in-memory session would just get saved straight back over it on the next message)
 
 ## Proactive schedule
 

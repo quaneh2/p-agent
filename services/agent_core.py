@@ -92,3 +92,17 @@ class AgentCore(GitRepo):
         if not write_result.get("success"):
             return write_result
         return self.commit_and_push(commit_message)
+
+    def remove_file(self, file_path: str, commit_message: str) -> dict:
+        """Delete a single file from agent-core, commit, and push."""
+        delete_result = self.delete_file(file_path)
+        if not delete_result.get("success"):
+            return delete_result
+        return self.commit_and_push(commit_message)
+
+    def remove_folder(self, folder_path: str, commit_message: str) -> dict:
+        """Delete a folder (and everything under it) from agent-core, commit, and push."""
+        delete_result = self.delete_folder(folder_path)
+        if not delete_result.get("success"):
+            return delete_result
+        return self.commit_and_push(commit_message)

@@ -141,6 +141,30 @@ def handle_update_agent_core(agent_core, file_path: str, content: str, commit_me
     return json.dumps(result)
 
 
+def handle_delete_agent_core_file(agent_core, file_path: str, commit_message: str) -> str:
+    logger.info("Deleting agent-core file: %s", file_path)
+    result = agent_core.remove_file(file_path=file_path, commit_message=commit_message)
+    if not result.get("success"):
+        logger.error("Delete failed: %s", result.get('error'))
+    return json.dumps(result)
+
+
+def handle_delete_agent_core_folder(agent_core, folder_path: str, commit_message: str) -> str:
+    logger.info("Deleting agent-core folder: %s", folder_path)
+    result = agent_core.remove_folder(folder_path=folder_path, commit_message=commit_message)
+    if not result.get("success"):
+        logger.error("Delete failed: %s", result.get('error'))
+    return json.dumps(result)
+
+
+# --- Telegram memory handler ---
+
+def handle_reset_telegram_memory(reset_fn) -> str:
+    logger.info("Resetting Telegram conversation memory")
+    result = reset_fn()
+    return json.dumps(result)
+
+
 # --- Router ---
 
 def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
@@ -150,6 +174,7 @@ def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
     sk = services.get("skills", {})
     sc = services.get("scheduler")
     db = services.get("dashboard")
+    rt = services.get("reset_telegram_sessions")
 
     dispatch = {
         # Fetch
@@ -184,6 +209,10 @@ def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
         "create_agent_core": lambda: handle_create_agent_core(ac, tool_input["file_path"], tool_input["content"], tool_input["commit_message"]),
         "update_memory":    lambda: handle_update_memory(ac, tool_input["content"], tool_input["commit_message"]),
         "update_agent_core": lambda: handle_update_agent_core(ac, tool_input["file_path"], tool_input["content"], tool_input["commit_message"]),
+        "delete_agent_core_file": lambda: handle_delete_agent_core_file(ac, tool_input["file_path"], tool_input["commit_message"]),
+        "delete_agent_core_folder": lambda: handle_delete_agent_core_folder(ac, tool_input["folder_path"], tool_input["commit_message"]),
+        # Telegram memory
+        "reset_telegram_memory": lambda: handle_reset_telegram_memory(rt),
     }
 
     handler = dispatch.get(tool_name)

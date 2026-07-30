@@ -76,6 +76,7 @@ class Agent:
             "skills": self._skills,
             "scheduler": self.scheduler,
             "dashboard": self.dashboard_skill,
+            "reset_telegram_sessions": self.reset_telegram_sessions,
         }
 
     def init_claude(self):
@@ -370,6 +371,19 @@ class Agent:
         if len(history) > MAX_TELEGRAM_HISTORY:
             self._telegram_sessions[chat_id] = history[-MAX_TELEGRAM_HISTORY:]
         self._save_telegram_sessions()
+
+    def reset_telegram_sessions(self) -> dict:
+        """
+        Clear all in-memory Telegram conversation history and persist the empty
+        state immediately. Clearing the file alone isn't enough while the process
+        is running — the next message would just re-save the still-populated
+        in-memory history straight back over it. This clears both, in the same
+        request that triggered it, so the reset actually takes effect right away
+        with no restart required.
+        """
+        self._telegram_sessions.clear()
+        self._save_telegram_sessions()
+        return {"success": True, "message": "Telegram conversation memory cleared."}
 
 
 def send_telegram_response(telegram_service: TelegramService, chat_id: int, response: str):

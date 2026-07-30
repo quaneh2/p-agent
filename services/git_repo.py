@@ -4,6 +4,7 @@ GitRepo base class - common git repository functionality
 
 import logging
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -152,6 +153,40 @@ class GitRepo:
                 "success": False,
                 "error": str(e)
             }
+
+    def delete_file(self, file_path: str) -> dict:
+        """Delete a single file."""
+        try:
+            full_path = self.repo_dir / file_path
+
+            if not full_path.exists():
+                return {"success": False, "error": f"File not found: {file_path}"}
+            if not full_path.is_file():
+                return {"success": False, "error": f"Path is not a file: {file_path}"}
+
+            full_path.unlink()
+            self._run_git(["add", "-A", "--", file_path])
+
+            return {"success": True, "path": file_path}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def delete_folder(self, folder_path: str) -> dict:
+        """Delete a folder and everything under it."""
+        try:
+            full_path = self.repo_dir / folder_path
+
+            if not full_path.exists():
+                return {"success": False, "error": f"Folder not found: {folder_path}"}
+            if not full_path.is_dir():
+                return {"success": False, "error": f"Path is not a folder: {folder_path}"}
+
+            shutil.rmtree(full_path)
+            self._run_git(["add", "-A", "--", folder_path])
+
+            return {"success": True, "path": folder_path}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def commit_and_push(self, commit_message: str) -> dict:
         """Commit staged changes and push to remote."""
