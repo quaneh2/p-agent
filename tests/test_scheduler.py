@@ -264,3 +264,117 @@ def test_remove_task_not_found():
     result = sched.remove_task("nonexistent-id")
     assert result["success"] is False
     assert "No task found" in result["error"]
+
+
+# ---------------------------------------------------------------------------
+# Jitter
+# ---------------------------------------------------------------------------
+
+def test_jitter_keeps_next_run_within_window_on_create():
+    sched = _make_scheduler(tasks=[])
+    now = datetime.now(timezone.utc)
+    result = sched.add_task({
+        "name": "Jittered daily",
+        "type": "recurring",
+        "cron": "0 8 * * *",
+        "jitter_minutes": 90,
+        "instruction": "update_vietnamese_dashboard",
+        "instruction_type": "skill",
+    })
+    assert result["success"] is True
+    next_dt = datetime.fromisoformat(result["task"]["next_run"])
+    # Base cron next-run is <=24h out; a 90-minute jitter can't push it past ~26h.
+    assert now < next_dt < now + timedelta(hours=26)
+
+
+def test_jitter_zero_is_deterministic():
+    sched = _make_scheduler(tasks=[])
+    from croniter import croniter
+    now_before = datetime.now(timezone.utc)
+    result = sched.add_task({
+        "name": "No jitter",
+        "type": "recurring",
+        "cron": "0 8 * * *",
+        "instruction": "update_vietnamese_dashboard",
+        "instruction_type": "skill",
+    })
+    expected = croniter("0 8 * * *", now_before).get_next(datetime)
+    actual = datetime.fromisoformat(result["task"]["next_run"])
+    # Without jitter, next_run should match the raw cron computation (within a
+    # second of slack for the two croniter calls happening a moment apart).
+    assert abs((actual - expected).total_seconds()) < 2
+
+
+def test_jitter_applied_on_mark_complete():
+    task = {
+        "id": "jjj",
+        "name": "Jittered recurring",
+        "type": "recurring",
+        "cron": "0 9 * * *",
+        "jitter_minutes": 60,
+        "run_at": None,
+        "instruction": "update_vietnamese_dashboard",
+        "instruction_type": "skill",
+        "next_run": _past_dt(60),
+        "last_run": None,
+        "created_at": _past_dt(3600),
+        "status": "active",
+    }
+    sched = _make_scheduler([task])
+    from croniter import croniter
+    now = datetime.now(timezone.utc)
+    base_next = croniter("0 9 * * *", now).get_next(datetime)
+    sched.mark_task_complete("jjj")
+    after = sched.list_tasks()[0]
+    next_dt = datetime.fromisoformat(after["next_run"])
+    assert abs((next_dt - base_next).total_seconds()) <= 60 * 60 + 5
+
+
+def test_negative_jitter_input_clamped_to_zero():
+    sched = _make_scheduler(tasks=[])
+    result = sched.add_task({
+        "name": "Bad jitter",
+        "type": "recurring",
+        "cron": "0 8 * * *",
+        "jitter_minutes": -50,
+        "instruction": "update_vietnamese_dashboard",
+        "instruction_type": "skill",
+    })
+    assert result["success"] is True
+    assert result["task"]["jitter_minutes"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Notify
+# ---------------------------------------------------------------------------
+
+def test_notify_defaults_true_for_natural_language():
+    sched = _make_scheduler(tasks=[])
+    result = sched.add_task({
+        "name": "Chatty task",
+        "type": "one_time",
+        "run_at": _future_dt(3600),
+        "instruction": "say hello",
+        "instruction_type": "natural_language",
+    })
+    assert result["task"]["notify"] is True
+
+
+def test_notify_can_be_set_false():
+    sched = _make_scheduler(tasks=[])
+    result = sched.add_task({
+        "name": "Silent task",
+        "type": "one_time",
+        "run_at": _future_dt(3600),
+        "instruction": "do internal housekeeping",
+        "instruction_type": "natural_language",
+        "notify": False,
+    })
+    assert result["task"]["notify"] is False
+
+
+def test_default_tasks_have_expected_notify_flags():
+    by_name = {t["name"]: t for t in DEFAULT_TASKS}
+    assert by_name["Vietnamese translation exercise"].get("notify", True) is True
+    assert by_name["Vietnamese conversation check-in"].get("notify", True) is True
+    assert by_name["Vietnamese nightly review"]["notify"] is False

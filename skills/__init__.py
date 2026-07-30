@@ -10,5 +10,12 @@ from .dashboard import DashboardSkill
 from .vietnamese_study import VietnameseStudySkill
 from .vietnamese_vocab import VietnameseVocabSkill
 from .vietnamese_dashboard import VietnameseDashboardSkill
+from .vietnamese_progress import VietnameseProgressSkill
 
-__all__ = ["DashboardSkill", "VietnameseStudySkill", "VietnameseVocabSkill", "VietnameseDashboardSkill"]
+__all__ = [
+    "DashboardSkill",
+    "VietnameseStudySkill",
+    "VietnameseVocabSkill",
+    "VietnameseDashboardSkill",
+    "VietnameseProgressSkill",
+]

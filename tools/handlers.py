@@ -44,6 +44,22 @@ def handle_prepare_vietnamese_quiz(skills, max_words: int = 10) -> str:
     return json.dumps(result)
 
 
+def handle_get_vietnamese_progress(skills) -> str:
+    logger.info("Loading Vietnamese progress snapshot")
+    result = skills["vietnamese_progress"].get_snapshot()
+    if not result.get("success"):
+        logger.error("Vietnamese progress load failed: %s", result.get('error'))
+    return json.dumps(result)
+
+
+def handle_update_vietnamese_progress(skills, **kwargs) -> str:
+    logger.info("Updating Vietnamese progress (reason=%s)", kwargs.get("reason", "?"))
+    result = skills["vietnamese_progress"].update_snapshot(**kwargs)
+    if not result.get("success"):
+        logger.error("Vietnamese progress update failed: %s", result.get('error'))
+    return json.dumps(result)
+
+
 def handle_save_vietnamese_session(
     skills,
     session_record: dict,
@@ -142,6 +158,16 @@ def handle_tool_call(tool_name: str, tool_input: dict, services: dict) -> str:
         "fetch_vietnamese_articles": lambda: handle_fetch_vietnamese_articles(sk, tool_input.get("topic")),
         "prepare_vietnamese_chat": lambda: handle_prepare_vietnamese_chat(sk),
         "prepare_vietnamese_quiz": lambda: handle_prepare_vietnamese_quiz(sk, tool_input.get("max_words", 10)),
+        "get_vietnamese_progress": lambda: handle_get_vietnamese_progress(sk),
+        "update_vietnamese_progress": lambda: handle_update_vietnamese_progress(
+            sk,
+            estimated_level=tool_input.get("estimated_level"),
+            difficulty_tier=tool_input.get("difficulty_tier"),
+            strengths=tool_input.get("strengths"),
+            struggles=tool_input.get("struggles"),
+            notes=tool_input.get("notes"),
+            reason=tool_input.get("reason"),
+        ),
         "save_vietnamese_session": lambda: handle_save_vietnamese_session(
             sk,
             tool_input.get("session_record", {}),
