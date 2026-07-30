@@ -38,6 +38,23 @@ logger = logging.getLogger(__name__)
 
 SCHEDULES_FILE = "SCHEDULES.json"
 
+# Shared by both spontaneous-chat default tasks below — a genuine, unprompted
+# message, not a scheduled drill. Time-of-day framing comes for free from the
+# live Ireland time-awareness line in every system prompt, so it doesn't need
+# to be hardcoded per task.
+_SPONTANEOUS_CHAT_INSTRUCTION = (
+    "Message Hugh out of the blue, the way a friend would text — you have something "
+    "on your mind (an opinion, something you noticed, a question about his day, a bit "
+    "of news, whatever feels genuine right now), not 'let's do a Vietnamese practice "
+    "session.' Call get_vietnamese_progress and prepare_vietnamese_chat first so the "
+    "review vocab guides what you pick, but don't let it show — the words should feel "
+    "like they belong to whatever you're actually saying, not like an exercise bolted "
+    "on. Use your sense of the current time of day (see Time Awareness) to pick "
+    "something that actually fits it — don't open a heavy topic at 7am or a chirpy one "
+    "at 11pm. Follow steps 1-2 of the Conversation Practice Workflow: open, then stop — "
+    "the conversation continues if and when Hugh replies."
+)
+
 # Seeded into a fresh agent-core on first run, so Hugh gets proactive
 # messages from day one without having to ask for a schedule to be set up.
 # All times are UTC; adjust cadence/timing anytime via add/remove_scheduled_task.
@@ -58,18 +75,20 @@ DEFAULT_TASKS = [
         ),
     },
     {
-        "name": "Vietnamese conversation check-in",
+        "name": "Vietnamese spontaneous chat (day)",
         "type": "recurring",
-        "cron": "0 17 * * *",  # ~17:00 UTC daily — starting cadence; tuned over time, see pacing review below
-        "jitter_minutes": 120,  # a chat should feel spontaneous, not clockwork
+        "cron": "0 10 * * *",  # ~10:00 UTC anchor, +/-4h -> 06:00-14:00 UTC (~7am-3pm Irish, DST-dependent)
+        "jitter_minutes": 240,
         "instruction_type": "natural_language",
-        "instruction": (
-            "Start a casual Vietnamese conversation practice session with Hugh. Follow "
-            "steps 1-2 of the Conversation Practice Workflow only: call "
-            "get_vietnamese_progress and prepare_vietnamese_chat, then open the "
-            "conversation. Keep it light and low-pressure — this should feel like a "
-            "genuine, spontaneous check-in from Minh, not a scheduled test."
-        ),
+        "instruction": _SPONTANEOUS_CHAT_INSTRUCTION,
+    },
+    {
+        "name": "Vietnamese spontaneous chat (evening)",
+        "type": "recurring",
+        "cron": "0 18 * * *",  # ~18:00 UTC anchor, +/-4h -> 14:00-22:00 UTC (~3pm-11pm Irish, DST-dependent)
+        "jitter_minutes": 240,
+        "instruction_type": "natural_language",
+        "instruction": _SPONTANEOUS_CHAT_INSTRUCTION,
     },
     {
         "name": "Vietnamese dashboard refresh",
@@ -111,23 +130,28 @@ DEFAULT_TASKS = [
         "instruction": (
             "Weekly self-tuning review — recurring, not a one-off. Call list_scheduled_tasks "
             "to see the current cron and jitter_minutes for the 'Vietnamese translation "
-            "exercise' and 'Vietnamese conversation check-in' tasks. Then judge the last "
-            "7-14 days of engagement: list_agent_core and read_agent_core recent files "
-            "under exercises/, plus vietnamese_vocab.json practice_count/last_practiced "
-            "trends. Were exercises and chats actually replied to and corrected, or left "
-            "unanswered? Is accuracy improving, flat, or is Hugh clearly overloaded "
-            "(skipped sessions, short or frustrated replies, the same mistakes repeating)? "
+            "exercise' and the two 'Vietnamese spontaneous chat (day/evening)' tasks. Then "
+            "judge the last 7-14 days of engagement: list_agent_core and read_agent_core "
+            "recent files under exercises/, plus vietnamese_vocab.json "
+            "practice_count/last_practiced trends. Were exercises and chats actually "
+            "replied to, or left unanswered? Is accuracy improving, flat, or is Hugh "
+            "clearly overloaded (skipped sessions, short or frustrated replies, the same "
+            "mistakes repeating)? "
             "If engagement and accuracy are strong, hold steady or nudge frequency up "
             "slightly. If sessions are going unanswered or accuracy is dropping, scale "
-            "back. To change either task's cadence: remove_scheduled_task the old one, "
-            "then add_scheduled_task a replacement with the same name, instruction, and "
-            "jitter_minutes (adjust jitter too if more/less randomness makes sense) but "
-            "an adjusted cron. Record what you observed and changed (or chose not to "
-            "change) via update_memory so future reviews have context and don't thrash "
-            "the schedule back and forth. This task is about HOW OFTEN to reach out — it "
-            "does not touch difficulty tier or estimated level, that's the nightly "
-            "review's job. Reply to Hugh with one or two honest sentences: what you "
-            "noticed, and what (if anything) you changed."
+            "back. For the exercise or an individual chat task, adjust cadence/jitter by "
+            "removing and re-adding it with the same name and instruction but a new cron "
+            "and/or jitter_minutes. Twice-daily spontaneous chat is the starting point, "
+            "not a mandate — if even one chat a day is regularly going unanswered, remove "
+            "one of the two chat tasks (down to one a day) rather than shrinking both; you "
+            "can always add it back later if engagement picks up. Never exceed two "
+            "spontaneous-chat tasks — that ceiling is deliberate, not just a default. "
+            "Record what you observed and changed (or chose not to change) via "
+            "update_memory so future reviews have context and don't thrash the schedule "
+            "back and forth. This task is about HOW OFTEN to reach out — it does not "
+            "touch difficulty tier or estimated level, that's the nightly review's job. "
+            "Reply to Hugh with one or two honest sentences: what you noticed, and what "
+            "(if anything) you changed."
         ),
     },
 ]

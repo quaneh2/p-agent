@@ -1,11 +1,11 @@
 # P. Agent — Vietnamese Learning Agent
 
-An always-on AI agent, entirely dedicated to helping Hugh study Vietnamese and get from B1 to B2. It talks over Telegram as Minh — a guy in his mid-30s from Sài Gòn — sends proactive translation exercises and conversation check-ins on a randomised schedule, quizzes vocabulary, tracks a structured model of Hugh's progress and calibrates difficulty against it, and logs every word and session through structured tools rather than ad-hoc edits — so progress is never lost or malformed.
+An always-on AI agent, entirely dedicated to helping Hugh study Vietnamese and get from B1 to B2. It talks over Telegram as Minh — a guy in his mid-30s from Sài Gòn — sends proactive translation exercises and spontaneous chats on a randomised schedule, quizzes vocabulary, tracks a structured model of Hugh's progress and calibrates difficulty against it, and logs every word and session through structured tools rather than ad-hoc edits — so progress is never lost or malformed.
 
 ## What it does
 
 - Polls a Telegram bot for messages from an authorised user and responds using Claude as its reasoning engine
-- Proactively sends Vietnamese translation exercises and casual conversation check-ins at least once daily, at a randomised time each day so it's not trivially predictable
+- Proactively sends a Vietnamese translation exercise daily, and up to two spontaneous chats a day spread anywhere from ~7am to ~11pm Irish time — capped at two so it never floods, randomised so it's not trivially predictable
 - Tracks a structured vocabulary list (`vietnamese_vocab.json`) with spaced-repetition review, written to exclusively through code tools — never free-form file edits
 - Tracks a structured progress model (`vietnamese_progress.json`): estimated level, a 1–5 difficulty tier, strengths/struggles, and an audit trail of how that assessment has changed over time — exercises are calibrated against it instead of a fixed difficulty
 - Runs a nightly review that reads recent sessions and deliberately updates that progress model (not reactively after every single exercise)
@@ -107,12 +107,13 @@ A fresh deployment seeds a sensible default schedule automatically (see `service
 | Task | Cadence | What happens |
 |---|---|---|
 | Vietnamese translation exercise | ~Daily 08:00 UTC, ±90 min jitter | Sends a fresh Vietnamese paragraph, calibrated to the current difficulty tier, to translate; corrected when Hugh replies |
-| Vietnamese conversation check-in | ~Daily 17:00 UTC, ±120 min jitter | Opens a short, casual Vietnamese chat |
+| Vietnamese spontaneous chat (day) | ~10:00 UTC anchor, ±4h jitter (06:00-14:00 UTC) | An unprompted, genuine-sounding Vietnamese message — Minh has something to ask or share, not a "practice session" |
+| Vietnamese spontaneous chat (evening) | ~18:00 UTC anchor, ±4h jitter (14:00-22:00 UTC) | Same as above, covering the other half of the day |
 | Vietnamese nightly review | Daily 02:00 UTC (silent) | Reviews the last 1-3 days of activity and, only when there's a genuine multi-session signal, updates the progress snapshot (level, difficulty tier, strengths/struggles) |
 | Vietnamese dashboard refresh | Daily 23:00 UTC (silent) | Regenerates the progress page |
-| Vietnamese pacing review | Weekly, Sunday 12:00 UTC | Reviews the past week's engagement (replies, accuracy, dropped sessions) and adjusts the exercise/check-in cadence and jitter to match Hugh's actual pace |
+| Vietnamese pacing review | Weekly, Sunday 12:00 UTC | Reviews the past week's engagement (replies, accuracy, dropped sessions) and adjusts the exercise/chat cadence and jitter to match Hugh's actual pace |
 
-The daily cadence above is a deliberate starting point, not a fixed target — the pacing review tunes *how often* over time based on real engagement, while the nightly review separately tunes *what level* to teach at. The `jitter_minutes` field on a recurring task randomises each computed run time within a window (implemented in the scheduler itself, not left to the model to remember) so proactive messages don't land at the exact same minute every day. The agent can also adjust cadence, timing, or content immediately whenever Hugh asks directly, e.g. "send exercises less often" or "switch check-ins to mornings."
+The two spontaneous-chat tasks' windows don't overlap, so together they cover roughly 7am-11pm Irish time (drifting ±1h with the season) without ever both landing close together — and two is a hard ceiling, never a third recurring chat task. If twice a day turns out to be too much, the fix is the pacing review removing one of the two tasks, not just shrinking both. The daily exercise cadence above is a deliberate starting point too, not a fixed target — the pacing review tunes *how often* over time based on real engagement, while the nightly review separately tunes *what level* to teach at. The `jitter_minutes` field on a recurring task randomises each computed run time within a window (implemented in the scheduler itself, not left to the model to remember) so proactive messages don't land at the exact same minute every day. The agent can also adjust cadence, timing, or content immediately whenever Hugh asks directly, e.g. "send exercises less often" or "switch check-ins to mornings."
 
 ## Environment variables
 

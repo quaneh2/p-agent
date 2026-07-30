@@ -376,5 +376,24 @@ def test_notify_can_be_set_false():
 def test_default_tasks_have_expected_notify_flags():
     by_name = {t["name"]: t for t in DEFAULT_TASKS}
     assert by_name["Vietnamese translation exercise"].get("notify", True) is True
-    assert by_name["Vietnamese conversation check-in"].get("notify", True) is True
+    assert by_name["Vietnamese spontaneous chat (day)"].get("notify", True) is True
+    assert by_name["Vietnamese spontaneous chat (evening)"].get("notify", True) is True
     assert by_name["Vietnamese nightly review"]["notify"] is False
+
+
+def test_default_chat_tasks_capped_at_two_and_non_overlapping():
+    chat_tasks = [t for t in DEFAULT_TASKS if "spontaneous chat" in t["name"]]
+    assert len(chat_tasks) == 2
+    for t in chat_tasks:
+        assert t["jitter_minutes"] > 0
+    # Windows (anchor +/- jitter) should not overlap, so the two chats stay spread out.
+    from croniter import croniter
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    windows = []
+    for t in chat_tasks:
+        anchor = croniter(t["cron"], now).get_next(datetime)
+        j = timedelta(minutes=t["jitter_minutes"])
+        windows.append((anchor - j, anchor + j))
+    windows.sort()
+    assert windows[0][1] <= windows[1][0]
