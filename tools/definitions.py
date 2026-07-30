@@ -2,349 +2,14 @@
 Tool definitions
 """
 
-REPO_NAME_PARAM = {
-    "repo_name": {
-        "type": "string",
-        "description": "Name of the repository to work in. Defaults to 'workspace'. Use the short name (e.g. 'workspace', 'my-project'), not the full GitHub path."
-    }
-}
-
 TOOLS = [
-    {
-        "name": "save_document",
-        "description": "Save a document to a repository workspace. Use this when asked to write, draft, create, or prepare any document. Use commit_and_push afterwards to push changes.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                **REPO_NAME_PARAM,
-                "file_path": {
-                    "type": "string",
-                    "description": "Path where the file should be saved relative to the repo root, e.g., 'notes/meeting-summary.md'. Use lowercase, hyphens, and .md or .txt extension."
-                },
-                "content": {
-                    "type": "string",
-                    "description": "The full content of the document to save."
-                }
-            },
-            "required": ["file_path", "content"]
-        }
-    },
-    {
-        "name": "read_document",
-        "description": "Read the contents of a document from a repository workspace.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                **REPO_NAME_PARAM,
-                "file_path": {
-                    "type": "string",
-                    "description": "Path to the file to read, e.g., 'notes/meeting-summary.md'"
-                }
-            },
-            "required": ["file_path"]
-        }
-    },
-    {
-        "name": "delete_document",
-        "description": "Delete a document from a repository workspace. Use commit_and_push afterwards.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                **REPO_NAME_PARAM,
-                "file_path": {
-                    "type": "string",
-                    "description": "Path to the file to delete, e.g., 'drafts/old-draft.md'"
-                }
-            },
-            "required": ["file_path"]
-        }
-    },
-    {
-        "name": "delete_folder",
-        "description": "Delete a folder from a repository workspace. By default only deletes empty folders. Set force=true to delete with all contents. Use commit_and_push afterwards.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                **REPO_NAME_PARAM,
-                "folder_path": {
-                    "type": "string",
-                    "description": "Path to the folder to delete, e.g., 'drafts/old-project'"
-                },
-                "force": {
-                    "type": "boolean",
-                    "description": "If true, delete folder even if not empty. Default is false.",
-                    "default": False
-                }
-            },
-            "required": ["folder_path"]
-        }
-    },
-    {
-        "name": "rename_document",
-        "description": "Rename or move a document within a repository workspace. Use commit_and_push afterwards.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                **REPO_NAME_PARAM,
-                "old_path": {
-                    "type": "string",
-                    "description": "Current path of the file, e.g., 'drafts/old-name.md'"
-                },
-                "new_path": {
-                    "type": "string",
-                    "description": "New path for the file, e.g., 'published/new-name.md'"
-                }
-            },
-            "required": ["old_path", "new_path"]
-        }
-    },
-    {
-        "name": "create_folder",
-        "description": "Create a new folder in a repository workspace. Use commit_and_push afterwards.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                **REPO_NAME_PARAM,
-                "folder_path": {
-                    "type": "string",
-                    "description": "Path for the new folder, e.g., 'projects/new-project'"
-                }
-            },
-            "required": ["folder_path"]
-        }
-    },
-    {
-        "name": "commit_and_push",
-        "description": "Commit all current changes in a repository workspace and push to GitHub.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                **REPO_NAME_PARAM,
-                "commit_message": {
-                    "type": "string",
-                    "description": "A clear commit message describing the changes."
-                }
-            },
-            "required": ["commit_message"]
-        }
-    },
-    {
-        "name": "examine_workspace",
-        "description": "Examine the file structure of a repository workspace.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                **REPO_NAME_PARAM,
-            },
-            "required": []
-        }
-    },
-    # --- GitHub admin tools ---
-    {
-        "name": "list_repos",
-        "description": "List all GitHub repositories on the account.",
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        }
-    },
-    {
-        "name": "create_repo",
-        "description": "Create a new GitHub repository and initialise a local workspace for it. Use this when you need a new dedicated space for a project or body of work.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Repository name. Lowercase, hyphens, no spaces. E.g. 'research-notes', 'client-briefs'."
-                },
-                "description": {
-                    "type": "string",
-                    "description": "A short description of what this repository is for."
-                },
-                "private": {
-                    "type": "boolean",
-                    "description": "Whether the repository should be private. Defaults to true.",
-                    "default": True
-                }
-            },
-            "required": ["name"]
-        }
-    },
-    {
-        "name": "delete_repo",
-        "description": "Permanently delete a GitHub repository owned by this account. This is irreversible. Only repositories belonging to this account can be deleted. Requires confirm=true to proceed.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "repo_name": {
-                    "type": "string",
-                    "description": "Name of the repository to delete. Use the short name (e.g. 'old-project'), not the full GitHub path. Only own-account repos can be deleted."
-                },
-                "confirm": {
-                    "type": "boolean",
-                    "description": "Must be set to true to confirm deletion. This operation is permanent and cannot be undone.",
-                    "default": False
-                }
-            },
-            "required": ["repo_name", "confirm"]
-        }
-    },
-    {
-        "name": "create_issue",
-        "description": "Create a GitHub issue in a repository. Useful for tracking tasks, bugs, or ideas.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "repo_name": {
-                    "type": "string",
-                    "description": "Name of the repository to create the issue in, e.g. 'workspace'."
-                },
-                "title": {
-                    "type": "string",
-                    "description": "Issue title."
-                },
-                "body": {
-                    "type": "string",
-                    "description": "Issue body. Markdown supported."
-                }
-            },
-            "required": ["repo_name", "title", "body"]
-        }
-    },
-    {
-        "name": "create_branch",
-        "description": "Create a new branch in a repository.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "repo_name": {
-                    "type": "string",
-                    "description": "Name of the repository."
-                },
-                "branch_name": {
-                    "type": "string",
-                    "description": "Name for the new branch, e.g. 'feature/new-section'."
-                },
-                "from_branch": {
-                    "type": "string",
-                    "description": "Branch to create from. Defaults to 'main'.",
-                    "default": "main"
-                }
-            },
-            "required": ["repo_name", "branch_name"]
-        }
-    },
-    {
-        "name": "merge_branch",
-        "description": "Merge a branch into a base branch in a repository. Use this to merge feature branches into main on our own fork. Do NOT use this to merge into the upstream repository — use open_upstream_pr for that.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "repo_name": {
-                    "type": "string",
-                    "description": "Name of the repository."
-                },
-                "head_branch": {
-                    "type": "string",
-                    "description": "The branch to merge in (the source branch)."
-                },
-                "base_branch": {
-                    "type": "string",
-                    "description": "The branch to merge into. Defaults to 'main'.",
-                    "default": "main"
-                },
-                "commit_message": {
-                    "type": "string",
-                    "description": "Optional commit message for the merge. If omitted, a default message is used."
-                }
-            },
-            "required": ["repo_name", "head_branch"]
-        }
-    },
-    {
-        "name": "create_pull_request",
-        "description": "Create a pull request in a repository.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "repo_name": {
-                    "type": "string",
-                    "description": "Name of the repository."
-                },
-                "title": {
-                    "type": "string",
-                    "description": "Pull request title."
-                },
-                "body": {
-                    "type": "string",
-                    "description": "Pull request description. Markdown supported."
-                },
-                "head_branch": {
-                    "type": "string",
-                    "description": "The branch containing the changes."
-                },
-                "base_branch": {
-                    "type": "string",
-                    "description": "The branch to merge into. Defaults to 'main'.",
-                    "default": "main"
-                }
-            },
-            "required": ["repo_name", "title", "body", "head_branch"]
-        }
-    },
-    {
-        "name": "check_ci_status",
-        "description": "Wait for the CI workflow to complete on a branch and return the result. Call this after pushing to a feature branch. Blocks until CI finishes (up to 5 minutes). Returns whether CI passed and, on failure, which jobs and steps failed so you can diagnose and fix before opening a PR. Do not open a PR if CI is failing.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "repo_name": {
-                    "type": "string",
-                    "description": "Repository name, e.g. 'p-agent'"
-                },
-                "branch_name": {
-                    "type": "string",
-                    "description": "The branch to check CI for, e.g. 'feat/my-feature'"
-                }
-            },
-            "required": ["repo_name", "branch_name"]
-        }
-    },
-    {
-        "name": "open_upstream_pr",
-        "description": "Open a pull request from a branch on our fork against the upstream repository. Use this (not create_pull_request) when proposing changes to the source codebase for human review.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "description": "Pull request title."
-                },
-                "body": {
-                    "type": "string",
-                    "description": "Pull request description. Markdown supported. Explain what changed and why."
-                },
-                "branch_name": {
-                    "type": "string",
-                    "description": "The branch on our fork containing the changes, e.g. 'feat/my-feature'."
-                },
-                "base_branch": {
-                    "type": "string",
-                    "description": "The branch on the upstream repo to merge into. Defaults to 'main'.",
-                    "default": "main"
-                }
-            },
-            "required": ["title", "body", "branch_name"]
-        }
-    },
     # --- Fetch tool ---
     {
         "name": "fetch_url",
         "description": (
             "Fetch the content of a URL and return it as clean plain text. "
-            "Use this to read web pages, news articles, documentation, or any public URL. "
+            "Use this to read a specific article the user shares a link to (e.g. "
+            "'translate this: <url>'), or any other public web page. "
             "HTML tags and boilerplate are stripped; the result is readable prose. "
             "Content is capped at 50,000 characters to protect context window size."
         ),
@@ -353,28 +18,10 @@ TOOLS = [
             "properties": {
                 "url": {
                     "type": "string",
-                    "description": "The URL to fetch, e.g. 'https://news.ycombinator.com'"
+                    "description": "The URL to fetch, e.g. 'https://vnexpress.net/...'"
                 }
             },
             "required": ["url"]
-        }
-    },
-    # --- Skills ---
-    {
-        "name": "run_hn_digest",
-        "description": (
-            "Run the Hacker News digest skill. Fetches the top HN stories via the Firebase API, "
-            "scores them for relevance to Hugh's work (AI, agents, software engineering, startups, "
-            "dev tools), fetches the full text of each article, and returns structured data. "
-            "After calling this tool, YOU must: (1) write a genuine summary of each article from "
-            "its raw content, (2) identify themes, connections, and insights across all articles, "
-            "and (3) save structured notes to the workspace under the returned output_folder using "
-            "save_document. Use this when asked for a daily HN digest or 'what's on HN today'."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": []
         }
     },
     {
@@ -450,13 +97,17 @@ TOOLS = [
         "name": "save_vietnamese_session",
         "description": (
             "Atomically save a completed Vietnamese study session and update the vocab list. "
+            "This is the ONLY reliable way to record a session or add/update vocabulary — "
+            "it writes directly to the structured vietnamese_vocab.json and exercises/ data "
+            "files via code, so entries are never lost, malformed, or duplicated. "
             "Handles translation exercises (mode='exercise'), conversation sessions "
-            "(mode='conversation'), and Anki-style quiz sessions (mode='quiz'). "
-            "Must be called at the end of every study session. "
+            "(mode='conversation'), Anki-style quiz sessions (mode='quiz'), and ad-hoc "
+            "vocabulary lookups (mode='lookup', for when the user just asks what a word means). "
+            "Must be called at the end of every study session, and immediately after every "
+            "ad-hoc 'what does X mean?' question. "
             "Saves the session record to exercises/ in agent-core, increments practice_count "
             "and sets last_practiced for each word in words_practiced, and appends any new_entries "
-            "to the vocab list (duplicates are silently skipped). "
-            "Prefer this over calling create_agent_core and update_agent_core separately."
+            "to the vocab list (duplicates are silently skipped)."
         ),
         "input_schema": {
             "type": "object",
@@ -465,14 +116,15 @@ TOOLS = [
                     "type": "object",
                     "description": (
                         "Full session JSON. Required fields: date (YYYY-MM-DD), mode ('exercise', "
-                        "'conversation', or 'quiz'), topic. "
+                        "'conversation', 'quiz', or 'lookup'), topic. "
                         "For exercise mode also include: paragraph_vi, vocab_reviewed, "
                         "vocab_new_introduced, user_translation, correction_notes, "
                         "vocab_added_to_list, inspiration_source. "
                         "For conversation mode also include: conversation_summary, vocab_reviewed, "
                         "vocab_new_introduced, correction_notes, vocab_added_to_list, inspiration_source. "
                         "For quiz mode also include: cards_presented, correct_count, incorrect_count, "
-                        "vocab_reviewed, correction_notes, vocab_added_to_list."
+                        "vocab_reviewed, correction_notes, vocab_added_to_list. "
+                        "For lookup mode, topic should be 'direct lookup' — no other fields required."
                     )
                 },
                 "words_practiced": {
@@ -502,9 +154,11 @@ TOOLS = [
         "name": "add_scheduled_task",
         "description": (
             "Schedule a task to run once at a future datetime or on a recurring cron schedule. "
-            "Use instruction_type='skill' to run a registered skill (e.g. 'run_hn_digest') directly — "
-            "no extra Claude credits are used at runtime. "
-            "Use instruction_type='natural_language' to run a text instruction via Claude when the task fires. "
+            "Use instruction_type='skill' to run a registered skill (e.g. 'update_vietnamese_dashboard') "
+            "directly — no extra Claude credits are used at runtime. "
+            "Use instruction_type='natural_language' to run a text instruction via Claude when the task "
+            "fires — the instruction's final response text is sent to Hugh directly via Telegram, so "
+            "this is how proactive articles, exercises, reminders, and check-in chats get delivered. "
             "cron uses standard 5-field UTC syntax, e.g. '0 9 * * 1-5' for weekday 09:00 UTC. "
             "run_at uses ISO 8601 UTC, e.g. '2027-04-13T09:00:00Z'. "
             "The dashboard at https://stevens-j-54.github.io is auto-updated after adding."
@@ -514,7 +168,7 @@ TOOLS = [
             "properties": {
                 "name": {
                     "type": "string",
-                    "description": "Short human-readable task name, e.g. 'Morning HN Digest'."
+                    "description": "Short human-readable task name, e.g. 'Friday translation exercise'."
                 },
                 "type": {
                     "type": "string",
@@ -525,8 +179,7 @@ TOOLS = [
                     "type": "string",
                     "description": (
                         "Required for recurring tasks. Standard 5-field cron in UTC. "
-                        "Examples: '0 9 * * 1-5' (weekday 09:00), '30 7 * * *' (daily 07:30), "
-                        "'0 8 * * 1' (Monday 08:00)."
+                        "Examples: '0 8 * * 1,3,5' (Mon/Wed/Fri 08:00), '0 17 * * 2,6' (Tue/Sat 17:00)."
                     )
                 },
                 "run_at": {
@@ -540,7 +193,7 @@ TOOLS = [
                     "type": "string",
                     "description": (
                         "What to do when the task fires. "
-                        "For instruction_type='skill': the skill name, e.g. 'run_hn_digest'. "
+                        "For instruction_type='skill': the skill name, e.g. 'update_vietnamese_dashboard'. "
                         "For instruction_type='natural_language': a plain-English instruction."
                     )
                 },
@@ -548,8 +201,10 @@ TOOLS = [
                     "type": "string",
                     "enum": ["skill", "natural_language"],
                     "description": (
-                        "'skill' calls a Python skill directly (zero extra credits). "
-                        "'natural_language' runs the instruction through Claude with a lean prompt."
+                        "'skill' calls a Python skill directly (zero extra credits, runs silently — "
+                        "use for background maintenance like dashboard refreshes). "
+                        "'natural_language' runs the instruction through Claude and sends the result "
+                        "to Hugh via Telegram — use for anything he should actually see."
                     )
                 }
             },
@@ -586,7 +241,7 @@ TOOLS = [
     # --- Agent-core tools ---
     {
         "name": "list_agent_core",
-        "description": "List all files in your agent-core configuration repository.",
+        "description": "List all files in your agent-core configuration repository (identity, memory, vocab list, session history, schedule).",
         "input_schema": {
             "type": "object",
             "properties": {},
@@ -595,7 +250,7 @@ TOOLS = [
     },
     {
         "name": "read_agent_core",
-        "description": "Read the contents of a file in your agent-core configuration repository.",
+        "description": "Read the contents of a file in your agent-core configuration repository, e.g. 'IDENTITY.md' or 'vietnamese_vocab.json'.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -653,7 +308,7 @@ TOOLS = [
     },
     {
         "name": "update_memory",
-        "description": "Update your persistent memory (MEMORY.md). Always call this at the end of every conversation unless the email was purely trivial. Memory has three sections: Episodic (one-line log per email: [date] sender — task — outcome, keep last 20), Semantic (persistent facts about the user, their preferences, contacts, projects — the most important section), Procedural (what approaches work or fail: 'When asked to X, do Y'). Read the current MEMORY.md first, then write the full updated content.",
+        "description": "Update your persistent memory (MEMORY.md). Always call this at the end of every conversation unless the message was purely trivial. Memory has three sections: Episodic (one-line log per message: [date] task — outcome, keep last 20), Semantic (persistent facts about Hugh — his level, interests, recurring struggles, preferences — the most important section), Procedural (what approaches work or fail: 'When asked to X, do Y'). Read the current MEMORY.md first, then write the full updated content.",
         "input_schema": {
             "type": "object",
             "properties": {

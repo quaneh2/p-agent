@@ -1,147 +1,125 @@
-# P. Agent
+# P. Agent — Vietnamese Learning Agent
 
-An always-on AI agent with a persistent identity, memory, and the ability to administer its own GitHub repositories. The agent monitors a Gmail inbox and a Telegram bot for messages from authorised contacts and responds using Claude as its reasoning engine. It can also modify its own codebase by opening pull requests against its upstream repository.
+An always-on AI agent, entirely dedicated to helping Hugh study Vietnamese and get from B1 to B2. It talks over Telegram, sends proactive translation exercises and conversation check-ins on a schedule, quizzes vocabulary, and logs every word and session through structured tools rather than ad-hoc edits — so progress is never lost or malformed.
 
 ## What it does
 
-- Polls a Gmail inbox and a Telegram bot for messages from authorised contacts
-- Processes each message using Claude (Sonnet 4.6) with a full tool-use loop
-- Replies in-thread (email) or in-session (Telegram, with persistent history)
-- Creates, edits, and manages files across multiple GitHub repositories
-- Maintains persistent memory and a self-modifiable identity
-- Proposes changes to its own codebase via GitHub pull requests, with CI gating
-- Runs scheduled tasks (cron or one-time) and publishes a live dashboard to GitHub Pages
+- Polls a Telegram bot for messages from an authorised user and responds using Claude as its reasoning engine
+- Proactively sends Vietnamese translation exercises and casual conversation check-ins on a recurring schedule (no need to ask)
+- Tracks a structured vocabulary list (`vietnamese_vocab.json`) with spaced-repetition review, written to exclusively through code tools — never free-form file edits
+- Logs every study session (exercise, conversation, quiz, or ad-hoc word lookup) to `exercises/`
+- Publishes a live Vietnamese progress dashboard (streaks, heatmap, session history) to GitHub Pages
+- Maintains persistent memory and a self-tunable identity/schedule
+- Runs scheduled tasks (cron or one-time) via a lightweight scheduler
 
 ## Project structure
 
 ```
-agent.py                  # Main agent loop and EmailAgent class
+agent.py                  # Main agent loop and Agent class
 config.py                 # Environment config and constants
 pyproject.toml            # Project metadata and dependencies
 
 utils/
-  messages.py             # build_messages() — assembles Claude message arrays
-  email_utils.py          # strip_reply_prefix(), extract_body()
-  auth.py                 # is_authorized_email_sender(), is_authorized_telegram_user()
+  auth.py                 # is_authorized_telegram_user()
 
 prompts/
-  system.py               # Composes system prompt from agent-core files
-  email.py                # Email message template
-  telegram.py             # Telegram message template
+  system.py               # Composes system prompt from agent-core files + Vietnamese study workflow
+  telegram.py              # Telegram message template
 
 services/
-  email.py                # Gmail API: polling, parsing, sending replies, thread context
   telegram_service.py     # Telegram Bot API: long-polling, sending messages
-  workspace.py            # Git workspace management (file ops + commit/push)
-  agent_core.py           # Agent-core repo management (identity, soul, memory)
-  github_service.py       # GitHub API: repos, issues, branches, PRs, CI status, fork sync
-  git_repo.py             # Base class for git repository operations
-  scheduler.py            # Task scheduling: persist, query due tasks, cron via croniter
+  agent_core.py            # Agent-core repo management (identity, soul, memory, vocab, sessions)
+  git_repo.py              # Base class for git repository operations
+  scheduler.py              # Task scheduling: persist, query due tasks, seed defaults, cron via croniter
+  fetch_service.py          # HTTP fetch + HTML-to-text cleanup for article content
 
 skills/
-  hn_digest.py            # Hacker News digest: fetch, score, summarise, save to workspace
-  dashboard.py            # GitHub Pages dashboard: generate HTML, push to *.github.io repo
+  vietnamese_study.py       # Fetches Vietnamese news section pages for exercise topic inspiration
+  vietnamese_vocab.py       # Vocab spaced-repetition + atomic session/vocab save
+  vietnamese_dashboard.py   # Vietnamese progress page: generate HTML, push to *.github.io repo
+  dashboard.py               # Scheduled-task status page: generate HTML, push to *.github.io repo
 
 tools/
-  definitions.py          # Claude tool schemas
-  handlers.py             # Tool dispatch table and handler functions
+  definitions.py            # Claude tool schemas
+  handlers.py                # Tool dispatch table and handler functions
 
 tests/
-  test_build_messages.py  # Unit tests for build_messages()
-  test_email.py           # Unit tests for strip_reply_prefix()
-  test_scheduler.py       # Unit tests for SchedulerService
+  test_scheduler.py          # Unit tests for SchedulerService (incl. default-task seeding)
+  test_telegram_formatting.py # Unit tests for markdown -> Telegram HTML conversion
 
-docs/                     # Technical write-ups for significant features
+docs/                       # Technical write-ups for significant features
 
-agent-core/               # Local clone of the agent's configuration repo
-  IDENTITY.md             # Character and working style (editable by agent)
-  SOUL.md                 # Values and principles (editable by agent)
-  MEMORY.md               # Persistent memory across conversations
-  telegram_sessions.json  # Persisted Telegram conversation history
-  SCHEDULES.json          # Persisted task schedule
-
-repos/                    # Local clones of agent-managed repositories
-  workspace/              # Default general-purpose workspace
-  <other repos>/          # Additional repos created by the agent
+agent-core/                  # Local clone of the agent's configuration repo
+  IDENTITY.md                # Character and working style (editable by agent)
+  SOUL.md                    # Values and principles (editable by agent)
+  MEMORY.md                  # Persistent memory across conversations
+  vietnamese_vocab.json      # Structured vocabulary list
+  exercises/                 # One JSON record per study session
+  telegram_sessions.json     # Persisted Telegram conversation history
+  SCHEDULES.json             # Persisted task schedule
 ```
 
 ## Agent configuration
 
-The agent's behaviour is driven by three files in its `agent-core` repository:
+The agent's behaviour is driven by files in its `agent-core` repository:
 
 - **IDENTITY.md** — character, tone, and working style
 - **SOUL.md** — values and principles that guide decisions
 - **MEMORY.md** — episodic, semantic, and procedural memory written by the agent after each conversation
+- **vietnamese_vocab.json** / **exercises/** — Hugh's structured learning data, written only via the `save_vietnamese_session` tool
 
-These are loaded and composed into the system prompt on every message. The agent can update all three files via tools, with changes committed and pushed to GitHub immediately.
+These are loaded and composed into the system prompt on every message — live Telegram chat and scheduled tasks alike, since every call this agent makes is Vietnamese-study-relevant. The agent can update its identity/soul/memory via tools, with changes committed and pushed to GitHub immediately.
 
 ## Tools available to the agent
 
-**Workspace (file management)**
-- `save_document`, `read_document`, `delete_document`, `rename_document`
-- `create_folder`, `delete_folder`, `examine_workspace`, `commit_and_push`
-- All tools accept an optional `repo_name` parameter (defaults to `"workspace"`)
-
-**GitHub administration**
-- `list_repos` — list all repositories on the account
-- `create_repo` — create a new GitHub repo and initialise a local workspace
-- `create_issue` — open a GitHub issue in any repository
-- `create_branch` — create a branch and check it out locally
-- `merge_branch` — merge a branch into a target branch
-- `create_pull_request` — open a pull request on the agent's fork
-- `open_upstream_pr` — open a pull request against the upstream codebase repo
-- `check_ci_status` — poll GitHub Actions for a branch's CI result
-
-**Skills**
-- `run_hn_digest` — fetch HN front page, score stories for relevance, summarise and save to workspace
+**Vietnamese study**
+- `fetch_vietnamese_articles` — pull headlines from VNExpress/Tuổi Trẻ/Thanh Niên for exercise topic inspiration
+- `fetch_url` — fetch a specific article Hugh links
+- `prepare_vietnamese_chat` / `prepare_vietnamese_quiz` — load vocab due for spaced-repetition review
+- `save_vietnamese_session` — the single, reliable code-based way to log a session and update the vocab list (exercise, conversation, quiz, or a quick "what does X mean?" lookup); writes structured JSON, never hand-edited
 
 **Scheduling**
 - `add_scheduled_task` — schedule a task on a cron expression or a specific future datetime
 - `remove_scheduled_task` — cancel a scheduled task by ID
 - `list_scheduled_tasks` — list all tasks (active, paused, completed)
 
-**Self-modification**
-- `list_agent_core`, `read_agent_core` — inspect configuration files
+**Self-configuration**
+- `list_agent_core`, `read_agent_core` — inspect configuration/data files
 - `create_agent_core`, `update_agent_core` — modify identity, soul, or other config files
 - `update_memory` — update persistent memory
 
-## Self-modification flow
+## Proactive schedule
 
-The agent can propose changes to its own codebase:
+A fresh deployment seeds a sensible default schedule automatically (see `services/scheduler.py::DEFAULT_TASKS`):
 
-1. Create a feature branch on its fork (`stevens-j-54/p-agent`)
-2. Commit changes to the branch
-3. Open a pull request against the upstream repo (`quaneh2/p-agent`)
-4. Poll `check_ci_status` until CI passes or fails
-5. Self-review the diff before finalising
-6. One PR per logical change; the agent never merges its own PRs
+| Task | Cadence | What happens |
+|---|---|---|
+| Vietnamese translation exercise | Daily 08:00 UTC | Sends a fresh B1→B2 Vietnamese paragraph to translate; corrected when Hugh replies |
+| Vietnamese conversation check-in | Daily 17:00 UTC | Opens a short, casual Vietnamese chat |
+| Vietnamese dashboard refresh | Daily 23:00 UTC | Silently regenerates the progress page (no Telegram message) |
+| Vietnamese pacing review | Weekly, Sunday 12:00 UTC | Reviews the past week's engagement (replies, accuracy, dropped sessions) and adjusts the exercise/check-in cadence up or down to match Hugh's actual pace |
 
-When a PR is merged and Render redeploys, the fork is synced with upstream on the next startup.
+The daily cadence above is a deliberate starting point, not a fixed target — the pacing review tunes it over time based on real engagement, and the agent can also adjust cadence, timing, or content immediately whenever Hugh asks directly, e.g. "send exercises less often" or "switch check-ins to mornings."
 
 ## Environment variables
 
 | Variable | Description |
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key |
-| `GITHUB_TOKEN` | GitHub personal access token for the agent's account |
-| `GOOGLE_TOKEN_JSON` | Gmail OAuth token (for production deployment) |
-| `AUTHORIZED_SENDERS` | JSON array of email addresses allowed to contact the agent |
-| `UPSTREAM_CODEBASE_REPO` | Upstream repo for self-modification PRs (default: `quaneh2/p-agent`) |
+| `GITHUB_TOKEN` | GitHub personal access token for the agent's account (used to read/write its own `agent-core` and dashboard repos) |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token (Telegram disabled if unset) |
-| `TELEGRAM_AUTHORIZED_IDS` | JSON array of Telegram user IDs allowed to contact the agent. The first ID also receives scheduled task completion notifications. |
+| `TELEGRAM_AUTHORIZED_IDS` | JSON array of Telegram user IDs allowed to contact the agent. The first ID also receives proactive/scheduled messages. |
 
 ## Deployment
 
 The agent is deployed on [Render](https://render.com) as a background worker. On startup it:
 
-1. Authenticates with Gmail
-2. Initialises the GitHub service
-3. Clones (or pulls) the default workspace repo
-4. Clones (or pulls) the agent-core repo, seeding default configuration if needed
-5. Loads the task schedule from `agent-core/SCHEDULES.json`
-6. Initialises Telegram (if `TELEGRAM_BOT_TOKEN` is set), skipping any backlogged messages
-7. Syncs the fork with upstream and cleans up merged branches
-8. Begins polling Gmail, Telegram, and the task schedule every 10 seconds
+1. Initialises the Claude client
+2. Clones (or pulls) the agent-core repo, seeding default identity/soul/memory if needed
+3. Initialises the dashboard and Vietnamese study/vocab skills
+4. Loads the task schedule from `agent-core/SCHEDULES.json`, seeding a default schedule if missing
+5. Initialises Telegram (if `TELEGRAM_BOT_TOKEN` is set), skipping any backlogged messages
+6. Begins polling Telegram and the task schedule every 10 seconds
 
 ## Local development
 
@@ -149,9 +127,6 @@ The agent is deployed on [Render](https://render.com) as a background worker. On
 python -m venv venv
 source venv/bin/activate
 pip install ".[dev]"
-
-# Run OAuth flow to generate token.json
-python agent.py --auth
 
 # Run the agent
 python agent.py

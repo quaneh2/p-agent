@@ -10,7 +10,7 @@ telegram_sessions.json). Two task types are supported:
 Two instruction types are supported:
 
   skill            — calls a registered Python skill directly (no Claude API call)
-  natural_language — runs a text instruction through Claude with a lean prompt
+  natural_language — runs a text instruction through Claude with the full system prompt
 """
 
 import json
@@ -24,6 +24,68 @@ logger = logging.getLogger(__name__)
 
 SCHEDULES_FILE = "SCHEDULES.json"
 
+# Seeded into a fresh agent-core on first run, so Hugh gets proactive
+# messages from day one without having to ask for a schedule to be set up.
+# All times are UTC; adjust cadence/timing anytime via add/remove_scheduled_task.
+DEFAULT_TASKS = [
+    {
+        "name": "Vietnamese translation exercise",
+        "type": "recurring",
+        "cron": "0 8 * * *",  # daily 08:00 UTC — starting cadence; tuned over time, see pacing review below
+        "instruction_type": "natural_language",
+        "instruction": (
+            "Run a Vietnamese translation exercise for Hugh (B1 working towards B2). "
+            "Follow steps 1-3 of the Translation Exercise Workflow only: call "
+            "prepare_vietnamese_chat, write the paragraph, and present the exercise. "
+            "Do not correct or save the session yet — that happens once Hugh replies "
+            "with his translation in a later message."
+        ),
+    },
+    {
+        "name": "Vietnamese conversation check-in",
+        "type": "recurring",
+        "cron": "0 17 * * *",  # daily 17:00 UTC — starting cadence; tuned over time, see pacing review below
+        "instruction_type": "natural_language",
+        "instruction": (
+            "Start a casual Vietnamese conversation practice session with Hugh. "
+            "Follow steps 1-2 of the Conversation Practice Workflow only: call "
+            "prepare_vietnamese_chat, then open the conversation. Keep it light and "
+            "low-pressure — this should feel like a check-in, not a test."
+        ),
+    },
+    {
+        "name": "Vietnamese dashboard refresh",
+        "type": "recurring",
+        "cron": "0 23 * * *",  # daily 23:00 UTC
+        "instruction_type": "skill",
+        "instruction": "update_vietnamese_dashboard",
+    },
+    {
+        "name": "Vietnamese pacing review",
+        "type": "recurring",
+        "cron": "0 12 * * 0",  # weekly, Sunday 12:00 UTC
+        "instruction_type": "natural_language",
+        "instruction": (
+            "Weekly self-tuning review — recurring, not a one-off. Call list_scheduled_tasks "
+            "to see the current cron for the 'Vietnamese translation exercise' and "
+            "'Vietnamese conversation check-in' tasks. Then judge the last 7-14 days of "
+            "engagement: list_agent_core and read_agent_core recent files under exercises/, "
+            "plus vietnamese_vocab.json practice_count/last_practiced trends. Were exercises "
+            "and chats actually replied to and corrected, or left unanswered? Is accuracy "
+            "improving, flat, or is Hugh clearly overloaded (skipped sessions, short or "
+            "frustrated replies, the same mistakes repeating)? "
+            "If engagement and accuracy are strong, hold steady or nudge frequency up "
+            "slightly. If sessions are going unanswered or accuracy is dropping, scale "
+            "back. To change either task's cadence: remove_scheduled_task the old one, "
+            "then add_scheduled_task a replacement with the same name and instruction "
+            "but an adjusted cron. Record what you observed and changed (or chose not to "
+            "change) via update_memory so future reviews have context and don't thrash "
+            "the schedule back and forth. Reply to Hugh with one or two honest sentences: "
+            "what you noticed, and what (if anything) you changed."
+        ),
+    },
+]
+
 
 class SchedulerService:
     def __init__(self, agent_core, skills: dict):
@@ -36,12 +98,12 @@ class SchedulerService:
     # ------------------------------------------------------------------
 
     def load_tasks(self) -> list[dict]:
-        """Load tasks from agent-core/SCHEDULES.json. Creates file if missing."""
+        """Load tasks from agent-core/SCHEDULES.json. Seeds defaults if missing."""
         result = self.agent_core.read_file(SCHEDULES_FILE)
         if not result.get("success"):
-            logger.info("SCHEDULES.json not found — initialising empty schedule")
+            logger.info("SCHEDULES.json not found — seeding default schedule")
             self._tasks = []
-            self._persist("Initialise task schedule")
+            self._seed_defaults()
         else:
             try:
                 data = json.loads(result["content"])
@@ -157,6 +219,18 @@ class SchedulerService:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _seed_defaults(self) -> None:
+        """Populate a fresh schedule with DEFAULT_TASKS (each persisted via add_task)."""
+        for task_input in DEFAULT_TASKS:
+            result = self.add_task(task_input)
+            if not result.get("success"):
+                logger.warning(
+                    "Failed to seed default task '%s': %s",
+                    task_input.get("name"), result.get("error")
+                )
+        if not self._tasks:
+            self._persist("Initialise task schedule")
 
     def _calculate_next_run(self, task: dict) -> str | None:
         """Return the next scheduled run time as an ISO 8601 string, or None on error."""

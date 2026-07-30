@@ -24,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class DashboardSkill:
-    def __init__(self, github_service, agent_core):
-        self.github_service = github_service
+    def __init__(self, agent_core):
         self.agent_core = agent_core
         self._repo: GitRepo | None = None
 
@@ -95,7 +94,7 @@ class DashboardSkill:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="60">
-    <title>Hugh's Agent Task Dashboard</title>
+    <title>Vietnamese Agent — Scheduled Tasks</title>
     <style>
         *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
         :root {{
@@ -194,7 +193,7 @@ class DashboardSkill:
 </head>
 <body>
     <header>
-        <h1>Hugh's Agent Task Dashboard</h1>
+        <h1>Vietnamese Agent — Scheduled Tasks</h1>
         <p>Scheduled tasks managed by the agent &mdash; auto-refreshes every 60 seconds</p>
     </header>
 
