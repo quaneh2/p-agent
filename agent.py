@@ -24,7 +24,7 @@ from prompts import load_system_prompt, TELEGRAM_MESSAGE_TEMPLATE
 from tools import TOOLS, handle_tool_call
 from services import AgentCore, TelegramService, FetchService, SchedulerService
 from skills import DashboardSkill, VietnameseStudySkill, VietnameseVocabSkill, VietnameseDashboardSkill
-from utils import is_authorized_telegram_user
+from utils import is_authorized_telegram_user, split_message_parts
 
 logging.basicConfig(
     level=logging.INFO,
@@ -363,6 +363,18 @@ class Agent:
         self._save_telegram_sessions()
 
 
+def send_telegram_response(telegram_service: TelegramService, chat_id: int, response: str):
+    """
+    Send a Claude response to Telegram, splitting it into multiple messages
+    wherever the model marked a break (see TELEGRAM_PART_SEPARATOR) — e.g. an
+    exercise paragraph and its glossary arrive as two separate messages
+    instead of one long block. The full, unsplit response is still what gets
+    recorded in session history — only delivery is split.
+    """
+    for part in split_message_parts(response):
+        telegram_service.send_message(chat_id, part)
+
+
 def run_agent():
     """Main agent loop."""
     logger.info("=" * 50)
@@ -409,7 +421,7 @@ def run_agent():
                     logger.info("Processing Telegram message from user %s...", user_id)
                     response = agent.process_telegram_update(update)
 
-                    agent.telegram_service.send_message(chat_id, response)
+                    send_telegram_response(agent.telegram_service, chat_id, response)
                     logger.info("Telegram reply sent")
 
             # --- Scheduler ---
@@ -432,7 +444,7 @@ def run_agent():
                             # For direct (private) Telegram chats, chat_id == user_id,
                             # so the first authorized ID doubles as the notification target.
                             owner_chat_id = TELEGRAM_AUTHORIZED_IDS[0]
-                            agent.telegram_service.send_message(owner_chat_id, result)
+                            send_telegram_response(agent.telegram_service, owner_chat_id, result)
                             agent._record_scheduled_message(owner_chat_id, task, result)
                         logger.info("Scheduled task done: %s", task["name"])
                     except Exception as task_err:

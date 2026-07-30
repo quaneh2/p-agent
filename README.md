@@ -21,6 +21,7 @@ pyproject.toml            # Project metadata and dependencies
 
 utils/
   auth.py                 # is_authorized_telegram_user()
+  telegram_formatting.py  # split_message_parts() — breaks one reply into multiple Telegram messages
 
 prompts/
   system.py               # Composes system prompt from agent-core files + Vietnamese study workflow
@@ -46,6 +47,7 @@ tools/
 tests/
   test_scheduler.py          # Unit tests for SchedulerService (incl. default-task seeding)
   test_telegram_formatting.py # Unit tests for markdown -> Telegram HTML conversion
+  test_telegram_split.py      # Unit tests for split_message_parts()
 
 docs/                       # Technical write-ups for significant features
 
