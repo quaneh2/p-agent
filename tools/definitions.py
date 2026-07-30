@@ -402,5 +402,67 @@ TOOLS = [
             },
             "required": ["content", "commit_message"]
         }
+    },
+    {
+        "name": "delete_agent_core_file",
+        "description": (
+            "Permanently delete a single file from your agent-core configuration "
+            "repository. Irreversible — think before calling. Use this rather than "
+            "overwriting with empty content when a file shouldn't exist at all anymore."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "Path to the file to delete, e.g. 'exercises/2026-07-30T0800.json'"
+                },
+                "commit_message": {
+                    "type": "string",
+                    "description": "A clear commit message describing what was deleted and why"
+                }
+            },
+            "required": ["file_path", "commit_message"]
+        }
+    },
+    {
+        "name": "delete_agent_core_folder",
+        "description": (
+            "Permanently delete a folder and everything under it from your agent-core "
+            "configuration repository. Irreversible — think before calling. Used for "
+            "e.g. clearing all of exercises/ when Hugh asks to wipe his session history."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "folder_path": {
+                    "type": "string",
+                    "description": "Path to the folder to delete, e.g. 'exercises'"
+                },
+                "commit_message": {
+                    "type": "string",
+                    "description": "A clear commit message describing what was deleted and why"
+                }
+            },
+            "required": ["folder_path", "commit_message"]
+        }
+    },
+    {
+        "name": "reset_telegram_memory",
+        "description": (
+            "Clear all Telegram conversation history immediately — both the live "
+            "in-memory session and the persisted telegram_sessions.json file. Use only "
+            "when Hugh explicitly asks to forget past conversations or start fresh. "
+            "Irreversible, and affects every authorized chat, not just the current one. "
+            "Overwriting telegram_sessions.json yourself via update_agent_core is NOT "
+            "sufficient while the process is running — the still-populated in-memory "
+            "session would just get saved straight back over it on the next message. "
+            "This tool clears both at once, so the reset actually sticks."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
     }
 ]
