@@ -23,8 +23,14 @@ from config import (
 from prompts import load_system_prompt, TELEGRAM_MESSAGE_TEMPLATE
 from tools import TOOLS, handle_tool_call
 from services import AgentCore, TelegramService, FetchService, SchedulerService
-from skills import DashboardSkill, VietnameseStudySkill, VietnameseVocabSkill, VietnameseDashboardSkill
-from utils import is_authorized_telegram_user
+from skills import (
+    DashboardSkill,
+    VietnameseStudySkill,
+    VietnameseVocabSkill,
+    VietnameseDashboardSkill,
+    VietnameseProgressSkill,
+)
+from utils import is_authorized_telegram_user, split_message_parts
 
 logging.basicConfig(
     level=logging.INFO,
@@ -192,6 +198,9 @@ class Agent:
         )
         self._skills["update_vietnamese_dashboard"] = VietnameseDashboardSkill(
             dashboard_skill=self.dashboard_skill,
+        )
+        self._skills["vietnamese_progress"] = VietnameseProgressSkill(
+            agent_core=self.agent_core,
         )
         logger.info("Skills initialised: %s", list(self._skills.keys()))
         return self
@@ -363,6 +372,18 @@ class Agent:
         self._save_telegram_sessions()
 
 
+def send_telegram_response(telegram_service: TelegramService, chat_id: int, response: str):
+    """
+    Send a Claude response to Telegram, splitting it into multiple messages
+    wherever the model marked a break (see TELEGRAM_PART_SEPARATOR) — e.g. an
+    exercise paragraph and its glossary arrive as two separate messages
+    instead of one long block. The full, unsplit response is still what gets
+    recorded in session history — only delivery is split.
+    """
+    for part in split_message_parts(response):
+        telegram_service.send_message(chat_id, part)
+
+
 def run_agent():
     """Main agent loop."""
     logger.info("=" * 50)
@@ -409,7 +430,7 @@ def run_agent():
                     logger.info("Processing Telegram message from user %s...", user_id)
                     response = agent.process_telegram_update(update)
 
-                    agent.telegram_service.send_message(chat_id, response)
+                    send_telegram_response(agent.telegram_service, chat_id, response)
                     logger.info("Telegram reply sent")
 
             # --- Scheduler ---
@@ -422,17 +443,23 @@ def run_agent():
                         result = agent.execute_scheduled_task(task)
                         agent.scheduler.mark_task_complete(task["id"])
                         completed_any = True
-                        # Only natural-language tasks are meant to reach Hugh directly —
-                        # skill tasks (e.g. dashboard refresh) run silently in the background.
-                        if (
+                        # Only natural-language tasks are ever chat-worthy — skill tasks
+                        # (e.g. dashboard refresh) return raw data, not something to send.
+                        # Within natural-language tasks, notify defaults to True but can be
+                        # set False for tasks meant to run silently (e.g. the nightly review).
+                        should_notify = (
                             task["instruction_type"] == "natural_language"
+                            and task.get("notify", True)
+                        )
+                        if (
+                            should_notify
                             and TELEGRAM_AUTHORIZED_IDS
                             and agent.telegram_service
                         ):
                             # For direct (private) Telegram chats, chat_id == user_id,
                             # so the first authorized ID doubles as the notification target.
                             owner_chat_id = TELEGRAM_AUTHORIZED_IDS[0]
-                            agent.telegram_service.send_message(owner_chat_id, result)
+                            send_telegram_response(agent.telegram_service, owner_chat_id, result)
                             agent._record_scheduled_message(owner_chat_id, task, result)
                         logger.info("Scheduled task done: %s", task["name"])
                     except Exception as task_err:

@@ -11,18 +11,49 @@ Two instruction types are supported:
 
   skill            — calls a registered Python skill directly (no Claude API call)
   natural_language — runs a text instruction through Claude with the full system prompt
+
+A recurring task may also set:
+
+  jitter_minutes — randomises each computed next_run by up to +/- this many
+                   minutes, so a "daily" task doesn't land at the exact same
+                   time every day (easy to tune out) while still guaranteed
+                   to fire roughly on schedule.
+  notify         — for natural_language tasks only, whether the result is
+                   sent to Hugh on Telegram (default True). Lets a task run
+                   silently in the background (e.g. an overnight review that
+                   just updates internal files) without pinging him every
+                   time. Skill tasks are always silent regardless of this
+                   flag — their raw output isn't chat-worthy.
 """
 
 import json
 import logging
+import random
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from croniter import croniter, CroniterBadCronError
 
 logger = logging.getLogger(__name__)
 
 SCHEDULES_FILE = "SCHEDULES.json"
+
+# Shared by both spontaneous-chat default tasks below — a genuine, unprompted
+# message, not a scheduled drill. Time-of-day framing comes for free from the
+# live Ireland time-awareness line in every system prompt, so it doesn't need
+# to be hardcoded per task.
+_SPONTANEOUS_CHAT_INSTRUCTION = (
+    "Message Hugh out of the blue, the way a friend would text — you have something "
+    "on your mind (an opinion, something you noticed, a question about his day, a bit "
+    "of news, whatever feels genuine right now), not 'let's do a Vietnamese practice "
+    "session.' Call get_vietnamese_progress and prepare_vietnamese_chat first so the "
+    "review vocab guides what you pick, but don't let it show — the words should feel "
+    "like they belong to whatever you're actually saying, not like an exercise bolted "
+    "on. Use your sense of the current time of day (see Time Awareness) to pick "
+    "something that actually fits it — don't open a heavy topic at 7am or a chirpy one "
+    "at 11pm. Follow steps 1-2 of the Conversation Practice Workflow: open, then stop — "
+    "the conversation continues if and when Hugh replies."
+)
 
 # Seeded into a fresh agent-core on first run, so Hugh gets proactive
 # messages from day one without having to ask for a schedule to be set up.
@@ -31,27 +62,33 @@ DEFAULT_TASKS = [
     {
         "name": "Vietnamese translation exercise",
         "type": "recurring",
-        "cron": "0 8 * * *",  # daily 08:00 UTC — starting cadence; tuned over time, see pacing review below
+        "cron": "0 8 * * *",  # ~08:00 UTC daily — starting cadence; tuned over time, see pacing review below
+        "jitter_minutes": 90,  # lands anywhere ~06:30-09:30 UTC so it's not trivially predictable
         "instruction_type": "natural_language",
         "instruction": (
-            "Run a Vietnamese translation exercise for Hugh (B1 working towards B2). "
-            "Follow steps 1-3 of the Translation Exercise Workflow only: call "
-            "prepare_vietnamese_chat, write the paragraph, and present the exercise. "
-            "Do not correct or save the session yet — that happens once Hugh replies "
-            "with his translation in a later message."
+            "Run a Vietnamese translation exercise for Hugh. Follow steps 1-3 of the "
+            "Translation Exercise Workflow only: call get_vietnamese_progress and "
+            "prepare_vietnamese_chat, write the paragraph calibrated to his current "
+            "difficulty tier, and present the exercise enthusiastically. Do not correct "
+            "or save the session yet — that happens once Hugh replies with his "
+            "translation in a later message."
         ),
     },
     {
-        "name": "Vietnamese conversation check-in",
+        "name": "Vietnamese spontaneous chat (day)",
         "type": "recurring",
-        "cron": "0 17 * * *",  # daily 17:00 UTC — starting cadence; tuned over time, see pacing review below
+        "cron": "0 10 * * *",  # ~10:00 UTC anchor, +/-4h -> 06:00-14:00 UTC (~7am-3pm Irish, DST-dependent)
+        "jitter_minutes": 240,
         "instruction_type": "natural_language",
-        "instruction": (
-            "Start a casual Vietnamese conversation practice session with Hugh. "
-            "Follow steps 1-2 of the Conversation Practice Workflow only: call "
-            "prepare_vietnamese_chat, then open the conversation. Keep it light and "
-            "low-pressure — this should feel like a check-in, not a test."
-        ),
+        "instruction": _SPONTANEOUS_CHAT_INSTRUCTION,
+    },
+    {
+        "name": "Vietnamese spontaneous chat (evening)",
+        "type": "recurring",
+        "cron": "0 18 * * *",  # ~18:00 UTC anchor, +/-4h -> 14:00-22:00 UTC (~3pm-11pm Irish, DST-dependent)
+        "jitter_minutes": 240,
+        "instruction_type": "natural_language",
+        "instruction": _SPONTANEOUS_CHAT_INSTRUCTION,
     },
     {
         "name": "Vietnamese dashboard refresh",
@@ -61,27 +98,60 @@ DEFAULT_TASKS = [
         "instruction": "update_vietnamese_dashboard",
     },
     {
+        "name": "Vietnamese nightly review",
+        "type": "recurring",
+        "cron": "0 2 * * *",  # daily 02:00 UTC — genuinely overnight for Ireland
+        "instruction_type": "natural_language",
+        "notify": False,  # internal housekeeping — Hugh doesn't need a message every night
+        "instruction": (
+            "Overnight review — recurring, not a one-off. Look back over the last 1-3 "
+            "days: list_agent_core and read_agent_core recent files under exercises/, "
+            "vietnamese_vocab.json practice trends, and recent telegram_sessions.json "
+            "activity. Call get_vietnamese_progress to see the current assessment. "
+            "Only call update_vietnamese_progress if there's a genuine, multi-session "
+            "signal to act on — don't move the difficulty tier on a single data point, "
+            "and don't touch it at all most nights. Look for: consistent strong "
+            "performance at the current tier (tier up), consistent struggle or "
+            "overwhelm (tier down or hold), or a specific recurring strength/struggle "
+            "worth recording even without a tier change. Always give a reason when you "
+            "do change estimated_level or difficulty_tier. If anything durable and new "
+            "came up (a preference, a recurring topic of difficulty, anything worth "
+            "remembering beyond the progress file), fold it into MEMORY.md too via "
+            "update_memory. This task is separate from the weekly pacing review — this "
+            "one is about WHAT level to teach at, pacing review is about HOW OFTEN to "
+            "reach out. Don't touch the schedule here."
+        ),
+    },
+    {
         "name": "Vietnamese pacing review",
         "type": "recurring",
         "cron": "0 12 * * 0",  # weekly, Sunday 12:00 UTC
         "instruction_type": "natural_language",
         "instruction": (
             "Weekly self-tuning review — recurring, not a one-off. Call list_scheduled_tasks "
-            "to see the current cron for the 'Vietnamese translation exercise' and "
-            "'Vietnamese conversation check-in' tasks. Then judge the last 7-14 days of "
-            "engagement: list_agent_core and read_agent_core recent files under exercises/, "
-            "plus vietnamese_vocab.json practice_count/last_practiced trends. Were exercises "
-            "and chats actually replied to and corrected, or left unanswered? Is accuracy "
-            "improving, flat, or is Hugh clearly overloaded (skipped sessions, short or "
-            "frustrated replies, the same mistakes repeating)? "
+            "to see the current cron and jitter_minutes for the 'Vietnamese translation "
+            "exercise' and the two 'Vietnamese spontaneous chat (day/evening)' tasks. Then "
+            "judge the last 7-14 days of engagement: list_agent_core and read_agent_core "
+            "recent files under exercises/, plus vietnamese_vocab.json "
+            "practice_count/last_practiced trends. Were exercises and chats actually "
+            "replied to, or left unanswered? Is accuracy improving, flat, or is Hugh "
+            "clearly overloaded (skipped sessions, short or frustrated replies, the same "
+            "mistakes repeating)? "
             "If engagement and accuracy are strong, hold steady or nudge frequency up "
             "slightly. If sessions are going unanswered or accuracy is dropping, scale "
-            "back. To change either task's cadence: remove_scheduled_task the old one, "
-            "then add_scheduled_task a replacement with the same name and instruction "
-            "but an adjusted cron. Record what you observed and changed (or chose not to "
-            "change) via update_memory so future reviews have context and don't thrash "
-            "the schedule back and forth. Reply to Hugh with one or two honest sentences: "
-            "what you noticed, and what (if anything) you changed."
+            "back. For the exercise or an individual chat task, adjust cadence/jitter by "
+            "removing and re-adding it with the same name and instruction but a new cron "
+            "and/or jitter_minutes. Twice-daily spontaneous chat is the starting point, "
+            "not a mandate — if even one chat a day is regularly going unanswered, remove "
+            "one of the two chat tasks (down to one a day) rather than shrinking both; you "
+            "can always add it back later if engagement picks up. Never exceed two "
+            "spontaneous-chat tasks — that ceiling is deliberate, not just a default. "
+            "Record what you observed and changed (or chose not to change) via "
+            "update_memory so future reviews have context and don't thrash the schedule "
+            "back and forth. This task is about HOW OFTEN to reach out — it does not "
+            "touch difficulty tier or estimated level, that's the nightly review's job. "
+            "Reply to Hugh with one or two honest sentences: what you noticed, and what "
+            "(if anything) you changed."
         ),
     },
 ]
@@ -158,14 +228,21 @@ class SchedulerService:
             known = sorted(self._skills.keys())
             return {"success": False, "error": f"Unknown skill '{instruction}'. Known skills: {known}"}
 
+        try:
+            jitter_minutes = max(0, int(task_input.get("jitter_minutes") or 0))
+        except (TypeError, ValueError):
+            jitter_minutes = 0
+
         task: dict = {
             "id": str(uuid.uuid4()),
             "name": name,
             "type": task_type,
             "cron": task_input.get("cron") or None,
             "run_at": task_input.get("run_at") or None,
+            "jitter_minutes": jitter_minutes,
             "instruction": instruction,
             "instruction_type": instruction_type,
+            "notify": bool(task_input.get("notify", True)),
             "next_run": None,
             "last_run": None,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -197,7 +274,7 @@ class SchedulerService:
     def mark_task_complete(self, task_id: str) -> None:
         """
         Update a task after it has run.
-        - recurring: advance next_run via croniter from now
+        - recurring: advance next_run via croniter from now (jittered if configured)
         - one_time:  set status=completed
         """
         now = datetime.now(timezone.utc)
@@ -208,7 +285,9 @@ class SchedulerService:
             if task["type"] == "recurring":
                 cron = task.get("cron", "")
                 try:
-                    task["next_run"] = croniter(cron, now).get_next(datetime).isoformat()
+                    next_dt = croniter(cron, now).get_next(datetime)
+                    next_dt = self._apply_jitter(next_dt, task.get("jitter_minutes", 0))
+                    task["next_run"] = next_dt.isoformat()
                 except (CroniterBadCronError, ValueError) as e:
                     logger.error("Cannot advance next_run for task %s: %s", task_id, e)
             else:
@@ -232,6 +311,18 @@ class SchedulerService:
         if not self._tasks:
             self._persist("Initialise task schedule")
 
+    def _apply_jitter(self, dt: datetime, jitter_minutes: int) -> datetime:
+        """
+        Apply a random +/- offset (in minutes) to a computed run time.
+        Never pushes the result into the past — falls back to the un-jittered
+        time in that case (only possible with a very large jitter window).
+        """
+        if not jitter_minutes:
+            return dt
+        offset = timedelta(minutes=random.randint(-jitter_minutes, jitter_minutes))
+        jittered = dt + offset
+        return jittered if jittered > datetime.now(timezone.utc) else dt
+
     def _calculate_next_run(self, task: dict) -> str | None:
         """Return the next scheduled run time as an ISO 8601 string, or None on error."""
         if task["type"] == "recurring":
@@ -240,7 +331,9 @@ class SchedulerService:
                 return None
             try:
                 now = datetime.now(timezone.utc)
-                return croniter(cron, now).get_next(datetime).isoformat()
+                next_dt = croniter(cron, now).get_next(datetime)
+                next_dt = self._apply_jitter(next_dt, task.get("jitter_minutes", 0))
+                return next_dt.isoformat()
             except (CroniterBadCronError, ValueError) as e:
                 logger.warning("Invalid cron '%s': %s", cron, e)
                 return None

@@ -94,6 +94,67 @@ TOOLS = [
         }
     },
     {
+        "name": "get_vietnamese_progress",
+        "description": (
+            "Load Hugh's current Vietnamese progress snapshot: target_level, estimated_level, "
+            "difficulty_tier (1-5, see the Difficulty Tiers guide in your instructions), "
+            "journey_started, strengths, struggles, notes, and an audit-trail history of past "
+            "changes. Call this at the start of any translation exercise or conversation session "
+            "(alongside prepare_vietnamese_chat) to calibrate difficulty and tone. Cheap — reads "
+            "a single small file. Self-seeds sensible defaults on first-ever call."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "update_vietnamese_progress",
+        "description": (
+            "Update Hugh's Vietnamese progress snapshot. Only the fields you pass are changed. "
+            "This is a deliberate, occasional action — typically once during the nightly review, "
+            "not after every exercise — since the difficulty tier should reflect a genuine trend "
+            "across several sessions, not react to one data point. Whenever you pass "
+            "estimated_level or difficulty_tier and the value actually changes, a history entry "
+            "is appended automatically — always include reason in that case so the change is "
+            "explainable later. The single reliable way to update progress; never hand-edit "
+            "vietnamese_progress.json via create_agent_core/update_agent_core."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "estimated_level": {
+                    "type": "string",
+                    "description": "e.g. 'B1 (low)', 'B1 (solid)', 'B1→B2 transition', 'B2 (emerging)', 'B2 (confident)'."
+                },
+                "difficulty_tier": {
+                    "type": "integer",
+                    "description": "1-5. See the Difficulty Tiers guide in your instructions for what each tier means."
+                },
+                "strengths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Replaces the current strengths list entirely — read the existing snapshot first if you want to keep prior entries."
+                },
+                "struggles": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Replaces the current struggles list entirely — read the existing snapshot first if you want to keep prior entries."
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "Free-text context for how Hugh is doing and how to teach him right now. Replaces the current notes entirely."
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Why this update — required (in spirit) whenever estimated_level or difficulty_tier changes; recorded in history."
+                }
+            },
+            "required": []
+        }
+    },
+    {
         "name": "save_vietnamese_session",
         "description": (
             "Atomically save a completed Vietnamese study session and update the vocab list. "
@@ -201,10 +262,28 @@ TOOLS = [
                     "type": "string",
                     "enum": ["skill", "natural_language"],
                     "description": (
-                        "'skill' calls a Python skill directly (zero extra credits, runs silently — "
+                        "'skill' calls a Python skill directly (zero extra credits, always silent — "
                         "use for background maintenance like dashboard refreshes). "
-                        "'natural_language' runs the instruction through Claude and sends the result "
-                        "to Hugh via Telegram — use for anything he should actually see."
+                        "'natural_language' runs the instruction through Claude; the result is sent "
+                        "to Hugh via Telegram unless notify=false."
+                    )
+                },
+                "jitter_minutes": {
+                    "type": "integer",
+                    "description": (
+                        "Recurring tasks only. Randomises each computed next_run by up to +/- this "
+                        "many minutes, so e.g. a 'daily 08:00' task actually lands anywhere in "
+                        "06:30-09:30 — not the exact same time every day. Omit or 0 for exact timing "
+                        "(use that for anything precision matters for, like the nightly review)."
+                    )
+                },
+                "notify": {
+                    "type": "boolean",
+                    "description": (
+                        "natural_language tasks only, default true. Set false for a task that should "
+                        "run silently in the background — e.g. one that only updates internal files "
+                        "(progress, memory) rather than saying something to Hugh. Has no effect on "
+                        "instruction_type='skill' tasks, which are always silent."
                     )
                 }
             },
