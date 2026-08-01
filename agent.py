@@ -287,8 +287,13 @@ class Agent:
                 messages=messages,
             )
 
+            text_parts = []
             while response.stop_reason == "tool_use":
                 tool_calls = [block for block in response.content if block.type == "tool_use"]
+                # Text Claude writes alongside a tool call (e.g. explaining a word
+                # before logging it) must be kept — it's discarded from the final
+                # reply otherwise, since only the last response used to be returned.
+                text_parts.extend(block.text for block in response.content if hasattr(block, 'text') and block.text)
                 messages.append({"role": "assistant", "content": response.content})
 
                 tool_results = []
@@ -310,8 +315,8 @@ class Agent:
                     messages=messages,
                 )
 
-            text_blocks = [block.text for block in response.content if hasattr(block, 'text')]
-            return "\n".join(text_blocks)
+            text_parts.extend(block.text for block in response.content if hasattr(block, 'text') and block.text)
+            return "\n".join(text_parts)
 
         except Exception as e:
             logger.error("Claude API error: %s", e)
